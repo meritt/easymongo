@@ -1,0 +1,20 @@
+{
+    "name": "easymongo"
+  , "version": "0.0.1"
+  , "keywords": ["mongo", "mongodb"]
+  , "author": "Alexey Simonenko <alexey@simonenko.su>"
+  , "main": "./lib/easymongo"
+  , "repository": {
+        "type": "git"
+      , "url": "https://github.com/meritt/easymongo.ru"
+    }
+  , "engines": {
+      "node": ">=0.6.0 <0.7.0"
+    }
+  , "dependencies": {
+      "mongodb": ">=0.9.8 <0.9.9"
+    }
+  , "devDependencies": {
+      "coffee-script": ">= 1.2.0"
+    }
+}
