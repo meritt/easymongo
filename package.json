@@ -1,12 +1,13 @@
 {
     "name": "easymongo"
-  , "version": "0.0.1"
+  , "version": "0.0.2"
+  , "description": "Easy MongoDB"
   , "keywords": ["mongo", "mongodb", "easy"]
   , "author": "Alexey Simonenko <alexey@simonenko.su>"
   , "main": "./lib/easymongo"
   , "repository": {
         "type": "git"
-      , "url": "https://github.com/meritt/easymongo.ru"
+      , "url": "https://github.com/meritt/easymongo.git"
     }
   , "engines": {
       "node": ">=0.6.0 <0.7.0"
