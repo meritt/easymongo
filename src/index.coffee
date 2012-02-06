@@ -4,16 +4,16 @@ ensureObjectId = (id) ->
   if typeof id is 'string' then new ObjectID id else id
 
 class EasyMongo
-  configure: (@options) ->
+  constructor: (@options) ->
     @options.host = '127.0.0.1' unless @options.host?
     @options.port = 27017       unless @options.port?
 
   getInstance: (table, after) ->
     throw new Error 'The database name must be configured (options.db)' unless @options.db?
 
-    db = new Db @options.db, new Server @options.host, @options.port, {}
+    instance = new Db @options.db, new Server @options.host, @options.port, {}
 
-    db.open (error, db) ->
+    instance.open (error, db) ->
       console.log 'Error with connection to MongoDB server: ' + error if error
 
       db.collection table, (error, collection) ->
