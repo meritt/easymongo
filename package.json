@@ -5,7 +5,7 @@
   , "keywords": ["mongo", "mongodb", "easy"]
   , "author": "Alexey Simonenko <alexey@simonenko.su>"
   , "homepage": "http://github.com/meritt/easymongo"
-  , "main": "./lib/easymongo"
+  , "main": "./lib/index"
   , "repository": {
         "type": "git"
       , "url": "https://github.com/meritt/easymongo.git"
