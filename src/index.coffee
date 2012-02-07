@@ -23,7 +23,15 @@ class EasyMongo
 
   findById: (table, id, after = ->) ->
     @getInstance table, (db, collection) ->
-      collection.find(_id: ensureObjectId id).toArray (error, results) ->
+      try
+        params = _id: ensureObjectId id
+      catch exception
+        console.log 'Error with fetching document by id: ' + exception
+
+        db.close()
+        return after false
+
+      collection.find(params).toArray (error, results) ->
         console.log 'Error with fetching document by id: ' + error if error
 
         db.close()
@@ -31,7 +39,13 @@ class EasyMongo
 
   find: (table, params, after = ->) ->
     @getInstance table, (db, collection) ->
-      params._id = ensureObjectId params._id if params?._id?
+      try
+        params._id = ensureObjectId params._id if params?._id?
+      catch exception
+        console.log 'Error with fetching documents: ' + exception
+
+        db.close()
+        return after []
 
       collection.find(params).toArray (error, results) ->
         console.log 'Error with fetching documents: ' + error if error
