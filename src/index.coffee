@@ -31,7 +31,7 @@ class EasyMongo
 
   find: (table, params, after = ->) ->
     @getInstance table, (db, collection) ->
-      params._id = ensureObjectId params._id if params._id?
+      params._id = ensureObjectId params._id if params?._id?
 
       collection.find(params).toArray (error, results) ->
         console.log 'Error with fetching documents: ' + error if error
