@@ -6,6 +6,9 @@ ensureObjectId = (id) ->
 isFunction = (obj) ->
   toString.call(obj) is '[object Function]'
 
+isObject = (obj) ->
+  obj is Object obj
+
 class EasyMongo
   constructor: (@options) ->
     @options.host = '127.0.0.1' unless @options.host?
@@ -55,7 +58,11 @@ class EasyMongo
 
     @getInstance table, (db, collection) ->
       try
-        params._id = ensureObjectId params._id if params?._id?
+        if params?._id?
+          if isObject(params._id) and params._id.$in?
+            params._id.$in = params._id.$in.map (value) -> ensureObjectId value
+          else
+            params._id = ensureObjectId params._id
       catch exception
         console.log 'Error with fetching documents: ' + exception
 
