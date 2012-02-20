@@ -44,17 +44,7 @@ class EasyMongo
         after if results.length is 1 then results[0] else false
 
   find: (table, params, options, after) ->
-    if isFunction params
-      after   = params
-      params  = null
-      options = {}
-
-    if isFunction options
-      after   = options
-      options = {}
-
-    after   = (->) if not after
-    options = {}   if not options
+    [params, options, after] = @_normalizeArguments params, options, after
 
     @getInstance table, (db, collection) ->
       try
@@ -81,6 +71,13 @@ class EasyMongo
         db.close()
         after results
 
+  count: (table, after = ->) ->
+    @getInstance table, (db, collection) ->
+      collection.count (error, results) ->
+        console.log 'Error with fetching counts: ' + error if error
+        db.close()
+        after parseInt results, 10
+
   save: (table, params, after = ->) ->
     @getInstance table, (db, collection) ->
       params._id = ensureObjectId params._id if params._id?
@@ -90,5 +87,20 @@ class EasyMongo
 
         db.close()
         after if params._id? then params else results[0]
+
+  _normalizeArguments: (params, options, after) ->
+    if isFunction params
+      after   = params
+      params  = null
+      options = {}
+
+    if isFunction options
+      after   = options
+      options = {}
+
+    after   = (->) if not after
+    options = {}   if not options
+
+    [params, options, after]
 
 module.exports = EasyMongo
