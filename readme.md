@@ -24,10 +24,10 @@ Install with NPM
 API
 ---
 
-* getInstance (table, *callback*)
 * findById (table, id, *callback*)
-* find (table, params, *callback*)
-* save (table, params, *callback*)
+* find (table, params, *options*, *callback*)
+* count (table, params, *callback*)
+* save (table, data, *callback*)
 
 Author
 ------
