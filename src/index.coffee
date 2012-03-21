@@ -57,7 +57,11 @@ class EasyMongo
         return after false
 
       collection.find(params).toArray (error, results) =>
-        console.log 'Error with fetching document by id: ' + error if error
+        if error
+          console.log 'Error with fetching document by id: ' + error
+
+          @close()
+          return after false
 
         @close() if @_closeAfterRequest
         after if results and results.length is 1 then results[0] else false
@@ -85,7 +89,11 @@ class EasyMongo
       cursor.skip  options.skip  if options.skip
 
       cursor.toArray (error, results) =>
-        console.log 'Error with fetching documents: ' + error if error
+        if error
+          console.log 'Error with fetching documents: ' + error
+
+          @close()
+          return after []
 
         @close() if @_closeAfterRequest
         after results
@@ -97,7 +105,11 @@ class EasyMongo
 
     @getInstance table, (db, collection) =>
       collection.count params, (error, results) =>
-        console.log 'Error with fetching counts: ' + error if error
+        if error
+          console.log 'Error with fetching counts: ' + error
+
+          @close()
+          after false
 
         @close() if @_closeAfterRequest
         after parseInt results, 10
@@ -107,7 +119,11 @@ class EasyMongo
       params._id = ensureObjectId params._id if params._id?
 
       collection.save params, safe: true, (error, results) =>
-        console.log 'Error with saving data: ' + error if error
+        if error
+          console.log 'Error with saving data: ' + error
+
+          @close()
+          after false
 
         @close() if @_closeAfterRequest
         after if params._id? then params else results[0]
