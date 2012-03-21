@@ -51,7 +51,7 @@ class EasyMongo
       try
         params = _id: ensureObjectId id
       catch exception
-        console.log 'Error with fetching prepare params for findById: ' + exception
+        console.log 'Error with preparing params for findById: ' + exception
 
         @close()
         return after false
@@ -77,7 +77,7 @@ class EasyMongo
           else
             params._id = ensureObjectId params._id
       catch exception
-        console.log 'Error with fetching prepare params for find: ' + exception
+        console.log 'Error with preparing params for find: ' + exception
 
         @close()
         return after []
@@ -109,21 +109,27 @@ class EasyMongo
           console.log 'Error with fetching counts: ' + error
 
           @close()
-          after false
+          return after false
 
         @close() if @_closeAfterRequest
         after parseInt results, 10
 
   save: (table, params, after = ->) ->
     @getInstance table, (db, collection) =>
-      params._id = ensureObjectId params._id if params._id?
+      try
+        params._id = ensureObjectId params._id if params._id?
+      catch exception
+        console.log 'Error with preparing params for save: ' + exception
+
+        @close()
+        return after false
 
       collection.save params, safe: true, (error, results) =>
         if error
           console.log 'Error with saving data: ' + error
 
           @close()
-          after false
+          return after false
 
         @close() if @_closeAfterRequest
         after if params._id? then params else results[0]
