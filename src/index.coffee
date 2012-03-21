@@ -60,7 +60,7 @@ class EasyMongo
         console.log 'Error with fetching document by id: ' + error if error
 
         @close() if @_closeAfterRequest
-        after if results.length is 1 then results[0] else false
+        after if results and results.length is 1 then results[0] else false
 
   find: (table, params, options, after) ->
     [params, options, after] = @_normalizeArguments params, options, after
