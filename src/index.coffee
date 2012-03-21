@@ -103,6 +103,8 @@ class EasyMongo
       after   = params
       params  = null
 
+    after = (->) if after is null
+
     @getInstance table, (db, collection) =>
       collection.count params, (error, results) =>
         if error
