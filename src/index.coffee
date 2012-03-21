@@ -25,7 +25,7 @@ class EasyMongo
   getInstance: (table, after) ->
     throw new Error 'The database name must be configured (options.db)' unless @options.db?
 
-    if @db isnt null and @db.state is 'connected'
+    if @db isnt null and @db.state and @db.state is 'connected'
       @getCollection table, after
     else
       instance = new Db @options.db, new Server @options.host, @options.port, {}
@@ -47,15 +47,15 @@ class EasyMongo
         after collection
 
   findById: (table, id, after = ->) ->
+    try
+      params = _id: ensureObjectId id
+    catch exception
+      console.log 'Error with preparing params for findById: ' + exception
+
+      @close()
+      return after false
+
     @getInstance table, (collection) =>
-      try
-        params = _id: ensureObjectId id
-      catch exception
-        console.log 'Error with preparing params for findById: ' + exception
-
-        @close()
-        return after false
-
       collection.find(params).toArray (error, results) =>
         if error
           console.log 'Error with fetching document by id: ' + error
@@ -69,19 +69,19 @@ class EasyMongo
   find: (table, params, options, after) ->
     [params, options, after] = @_normalizeArguments params, options, after
 
+    try
+      if params?._id?
+        if isObject(params._id) and params._id.$in?
+          params._id.$in = params._id.$in.map (value) -> ensureObjectId value
+        else
+          params._id = ensureObjectId params._id
+    catch exception
+      console.log 'Error with preparing params for find: ' + exception
+
+      @close()
+      return after []
+
     @getInstance table, (collection) =>
-      try
-        if params?._id?
-          if isObject(params._id) and params._id.$in?
-            params._id.$in = params._id.$in.map (value) -> ensureObjectId value
-          else
-            params._id = ensureObjectId params._id
-      catch exception
-        console.log 'Error with preparing params for find: ' + exception
-
-        @close()
-        return after []
-
       cursor = collection.find params
 
       cursor.sort  options.sort  if options.sort
@@ -117,15 +117,15 @@ class EasyMongo
         after parseInt results, 10
 
   save: (table, params, after = ->) ->
+    try
+      params._id = ensureObjectId params._id if params._id?
+    catch exception
+      console.log 'Error with preparing params for save: ' + exception
+
+      @close()
+      return after false
+
     @getInstance table, (collection) =>
-      try
-        params._id = ensureObjectId params._id if params._id?
-      catch exception
-        console.log 'Error with preparing params for save: ' + exception
-
-        @close()
-        return after false
-
       collection.save params, safe: true, (error, results) =>
         if error
           console.log 'Error with saving data: ' + error
