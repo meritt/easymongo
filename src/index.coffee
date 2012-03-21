@@ -25,8 +25,8 @@ class EasyMongo
   getInstance: (table, after) ->
     throw new Error 'The database name must be configured (options.db)' unless @options.db?
 
-    if @db isnt null
-      @getCollection table, @db, after
+    if @db isnt null and @db.state is 'connected'
+      @getCollection table, after
     else
       instance = new Db @options.db, new Server @options.host, @options.port, {}
 
@@ -34,20 +34,20 @@ class EasyMongo
         console.log 'Error with connection to MongoDB server: ' + error if error
 
         @db = db
-        @getCollection table, db, after
+        @getCollection table, after
 
-  getCollection: (table, db, after) ->
+  getCollection: (table, after) ->
     if @collection.object isnt null and @collection.name is table
-      after @db, @collection.object
+      after @collection.object
     else
-      db.collection table, (error, collection) =>
+      @db.collection table, (error, collection) =>
         console.log 'Error with fetching collection: ' + error if error
 
         @collection = name: table, object: collection
-        after @db, @collection.object
+        after collection
 
   findById: (table, id, after = ->) ->
-    @getInstance table, (db, collection) =>
+    @getInstance table, (collection) =>
       try
         params = _id: ensureObjectId id
       catch exception
@@ -69,7 +69,7 @@ class EasyMongo
   find: (table, params, options, after) ->
     [params, options, after] = @_normalizeArguments params, options, after
 
-    @getInstance table, (db, collection) =>
+    @getInstance table, (collection) =>
       try
         if params?._id?
           if isObject(params._id) and params._id.$in?
@@ -105,7 +105,7 @@ class EasyMongo
 
     after = (->) if after is null
 
-    @getInstance table, (db, collection) =>
+    @getInstance table, (collection) =>
       collection.count params, (error, results) =>
         if error
           console.log 'Error with fetching counts: ' + error
@@ -117,7 +117,7 @@ class EasyMongo
         after parseInt results, 10
 
   save: (table, params, after = ->) ->
-    @getInstance table, (db, collection) =>
+    @getInstance table, (collection) =>
       try
         params._id = ensureObjectId params._id if params._id?
       catch exception
@@ -144,11 +144,11 @@ class EasyMongo
     @_closeAfterRequest = true
 
     if @db isnt null
+      if @collection.object isnt null
+        @collection = name: null, object: null
+
       @db.close()
       @db = null
-
-    if @collection.object isnt null
-      @collection = name: null, object: null
 
     @
 
