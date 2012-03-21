@@ -134,7 +134,7 @@ class EasyMongo
           return after false
 
         @close() if @_closeAfterRequest is true
-        after results
+        after if params._id? then params else results
 
   closeAfterRequest: (value) ->
     @_closeAfterRequest = value
