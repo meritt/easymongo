@@ -51,7 +51,7 @@ class EasyMongo
       try
         params = _id: ensureObjectId id
       catch exception
-        console.log 'Error with fetching document by id: ' + exception
+        console.log 'Error with fetching prepare params for findById: ' + exception
 
         @close()
         return after false
@@ -73,12 +73,12 @@ class EasyMongo
           else
             params._id = ensureObjectId params._id
       catch exception
-        console.log 'Error with fetching documents: ' + exception
+        console.log 'Error with fetching prepare params for find: ' + exception
 
         @close()
         return after []
 
-      cursor = collection.find(params)
+      cursor = collection.find params
 
       cursor.sort  options.sort  if options.sort
       cursor.limit options.limit if options.limit
