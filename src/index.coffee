@@ -63,7 +63,7 @@ class EasyMongo
           @close()
           return after false
 
-        @close() if @_closeAfterRequest
+        @close() if @_closeAfterRequest is true
         after if results and results.length is 1 then results[0] else false
 
   find: (table, params, options, after) ->
@@ -95,7 +95,7 @@ class EasyMongo
           @close()
           return after []
 
-        @close() if @_closeAfterRequest
+        @close() if @_closeAfterRequest is true
         after results
 
   count: (table, params, after) ->
@@ -113,7 +113,7 @@ class EasyMongo
           @close()
           return after false
 
-        @close() if @_closeAfterRequest
+        @close() if @_closeAfterRequest is true
         after parseInt results, 10
 
   save: (table, params, after = ->) ->
@@ -133,7 +133,7 @@ class EasyMongo
           @close()
           return after false
 
-        @close() if @_closeAfterRequest
+        @close() if @_closeAfterRequest is true
         after if params._id? then params else results[0]
 
   closeAfterRequest: (value) ->
