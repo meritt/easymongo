@@ -56,7 +56,7 @@ class EasyMongo
         @close()
         return after false
 
-      collection.find(params).toArray (error, results) ->
+      collection.find(params).toArray (error, results) =>
         console.log 'Error with fetching document by id: ' + error if error
 
         @close() if @_closeAfterRequest
