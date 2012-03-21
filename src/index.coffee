@@ -137,8 +137,11 @@ class EasyMongo
 
     if @db isnt null
       @db.close()
-      @collection = name: null, object: null
       @db = null
+
+    if @collection.object isnt null
+      @collection = name: null, object: null
+
     @
 
   _normalizeArguments: (params, options, after) ->
