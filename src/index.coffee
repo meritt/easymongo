@@ -124,7 +124,7 @@ class EasyMongo
     @
 
   Long: (number) -> new mongodb.Long number
-  ObjectID: (hex) -> new mongodb.ObjectID hex
+  ObjectID: (hex) -> ensureObjectId hex
   Timestamp: () -> new mongodb.Timestamp()
   DBRef: (collection, id) -> new mongodb.DBRef collection, id
   Binary: (buffer) -> new mongodb.Binary buffer
