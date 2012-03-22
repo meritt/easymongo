@@ -1,7 +1,8 @@
-{Db, Server, ObjectID} = require 'mongodb'
+mongodb      = require 'mongodb'
+{Db, Server} = mongodb
 
 ensureObjectId = (id) ->
-  if typeof id is 'string' then new ObjectID id else id
+  if typeof id is 'string' then new mongodb.ObjectID id else id
 
 isFunction = (obj) ->
   toString.call(obj) is '[object Function]'
@@ -121,6 +122,14 @@ class EasyMongo
       @db = null
 
     @
+
+  Long: (number) -> new mongodb.Long number
+  ObjectID: (hex) -> new mongodb.ObjectID hex
+  Timestamp: () -> new mongodb.Timestamp()
+  DBRef: (collection, id) -> new mongodb.DBRef collection, id
+  Binary: (buffer) -> new mongodb.Binary buffer
+  Symbol: (string) -> new mongodb.Symbol string
+  Double: (number) -> new mongodb.Double number
 
   _normalizeArguments: (params, options, after) ->
     if isFunction params
