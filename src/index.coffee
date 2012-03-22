@@ -12,11 +12,7 @@ isObject = (obj) ->
 class EasyMongo
   db: null
 
-  collection:
-    name:   null
-    object: null
-
-  _closeAfterRequest: true
+  collection: {}
 
   constructor: (@options) ->
     @options.host = '127.0.0.1' unless @options.host?
@@ -28,7 +24,7 @@ class EasyMongo
     if @db isnt null and @db.state and @db.state is 'connected'
       @getCollection table, after
     else
-      instance = new Db @options.db, new Server @options.host, @options.port, {}
+      instance = new Db @options.db, new Server @options.host, @options.port, auto_reconnect: true
 
       instance.open (error, db) =>
         console.log 'Error with connection to MongoDB server: ' + error if error
@@ -37,13 +33,13 @@ class EasyMongo
         @getCollection table, after
 
   getCollection: (table, after) ->
-    if @collection.object isnt null and @collection.name is table
-      after @collection.object
+    if @collection[table]?
+      after @collection[table]
     else
       @db.collection table, (error, collection) =>
         console.log 'Error with fetching collection: ' + error if error
 
-        @collection = name: table, object: collection
+        @collection[table] = collection
         after collection
 
   findById: (table, id, after = ->) ->
@@ -51,19 +47,14 @@ class EasyMongo
       params = _id: ensureObjectId id
     catch exception
       console.log 'Error with preparing params for findById: ' + exception
-
-      @close()
       return after false
 
     @getInstance table, (collection) =>
       collection.find(params).toArray (error, results) =>
         if error
           console.log 'Error with fetching document by id: ' + error
-
-          @close()
           return after false
 
-        @close() if @_closeAfterRequest is true
         after if results and results.length is 1 then results[0] else false
 
   find: (table, params, options, after) ->
@@ -77,8 +68,6 @@ class EasyMongo
           params._id = ensureObjectId params._id
     catch exception
       console.log 'Error with preparing params for find: ' + exception
-
-      @close()
       return after []
 
     @getInstance table, (collection) =>
@@ -91,11 +80,8 @@ class EasyMongo
       cursor.toArray (error, results) =>
         if error
           console.log 'Error with fetching documents: ' + error
-
-          @close()
           return after []
 
-        @close() if @_closeAfterRequest is true
         after results
 
   count: (table, params, after) ->
@@ -109,11 +95,8 @@ class EasyMongo
       collection.count params, (error, results) =>
         if error
           console.log 'Error with fetching counts: ' + error
-
-          @close()
           return after false
 
-        @close() if @_closeAfterRequest is true
         after parseInt results, 10
 
   save: (table, params, after = ->) ->
@@ -121,32 +104,19 @@ class EasyMongo
       params._id = ensureObjectId params._id if params._id?
     catch exception
       console.log 'Error with preparing params for save: ' + exception
-
-      @close()
       return after false
 
     @getInstance table, (collection) =>
       collection.save params, safe: true, (error, results) =>
         if error
           console.log 'Error with saving data: ' + error
-
-          @close()
           return after false
 
-        @close() if @_closeAfterRequest is true
         after if results is 1 then params else results
 
-  closeAfterRequest: (value) ->
-    @_closeAfterRequest = value
-    @
-
   close: ->
-    @_closeAfterRequest = true
-
     if @db isnt null
-      if @collection.object isnt null
-        @collection = name: null, object: null
-
+      @collection = {} if @collection isnt {}
       @db.close()
       @db = null
 
