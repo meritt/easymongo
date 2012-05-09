@@ -71,7 +71,7 @@ class EasyMongo
           console.log 'Error with removing document by id: ' + error
           return after false
 
-        after true
+        after results
 
   find: (table, params, options, after) ->
     [params, options, after] = @_normalizeArguments params, options, after
