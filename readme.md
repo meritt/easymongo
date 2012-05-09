@@ -25,6 +25,7 @@ API
 ---
 
 * findById (table, id, *callback*)
+* removeById (table, id, *callback*)
 * find (table, params, *options*, *callback*)
 * count (table, params, *callback*)
 * save (table, data, *callback*)

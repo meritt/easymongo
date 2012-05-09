@@ -58,6 +58,21 @@ class EasyMongo
 
         after if results and results.length is 1 then results[0] else false
 
+  removeById: (table, id, after = ->) ->
+    try
+      params = _id: ensureObjectId id
+    catch exception
+      console.log 'Error with preparing params for removeById: ' + exception
+      return after false
+
+    @getInstance table, (collection) =>
+      collection.findAndRemove params, (error, results) =>
+        if error
+          console.log 'Error with removing document by id: ' + error
+          return after false
+
+        after true
+
   find: (table, params, options, after) ->
     [params, options, after] = @_normalizeArguments params, options, after
 
