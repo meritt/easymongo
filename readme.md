@@ -1,3 +1,4 @@
+[![build status](https://secure.travis-ci.org/meritt/easymongo.png)](http://travis-ci.org/meritt/easymongo)
 # Easy Mongo
 
 It's a small exstension for [mongodb package](https://github.com/christkv/node-mongodb-native).
