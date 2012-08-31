@@ -33,4 +33,4 @@ API
 Author
 ------
 
-* Alexey Simonenko, alexey@simonenko.su
+* [Alexey Simonenko](mailto:alexey@simonenko.su), [simonenko.su](http://simonenko.su)
