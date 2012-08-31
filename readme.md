@@ -1,6 +1,6 @@
 # Easy Mongo
 
-It's a small exstension for [mongodb package](https://github.com/christkv/node-mongodb-native).
+It's a small exstension for [Mongo DB Native NodeJS Driver](https://github.com/mongodb/node-mongodb-native).
 
 ```javascript
 var easymongo = require('easymongo');
