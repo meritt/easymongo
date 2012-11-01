@@ -25,7 +25,8 @@ class EasyMongo
     if @db isnt null and @db.state and @db.state is 'connected'
       @getCollection table, after
     else
-      instance = new Db @options.db, new Server @options.host, @options.port, auto_reconnect: true
+      server = new Server @options.host, @options.port, auto_reconnect: true
+      instance = new Db @options.db, server, safe: true
 
       instance.open (error, db) =>
         console.log 'Error with connection to MongoDB server: ' + error if error
