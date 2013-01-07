@@ -136,6 +136,8 @@ class EasyMongo
   DBRef: (collection, id) -> new mongodb.DBRef collection, id
   Binary: (buffer)        -> new mongodb.Binary buffer
   Symbol: (string)        -> new mongodb.Symbol string
+  MinKey:                 -> new mongodb.MinKey()
+  MaxKey:                 -> new mongodb.MaxKey()
   Double: (number)        -> new mongodb.Double number
 
 ensureObjectId = (id) ->
