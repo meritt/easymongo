@@ -1,15 +1,6 @@
 mongodb      = require 'mongodb'
 {Db, Server} = mongodb
 
-ensureObjectId = (id) ->
-  if typeof id is 'string' then new mongodb.ObjectID id else id
-
-isFunction = (obj) ->
-  toString.call(obj) is '[object Function]'
-
-isObject = (obj) ->
-  obj is Object obj
-
 class EasyMongo
   db: null
 
@@ -29,7 +20,7 @@ class EasyMongo
       instance = new Db @options.db, server, safe: true
 
       instance.open (error, db) =>
-        console.log 'Error with connection to MongoDB server: ' + error if error
+        console.log "Error with connection to MongoDB server: #{error}" if error
 
         @db = db
         @getCollection table, after
@@ -39,7 +30,7 @@ class EasyMongo
       after @collection[table]
     else
       @db.collection table, (error, collection) =>
-        console.log 'Error with fetching collection: ' + error if error
+        console.log "Error with fetching collection: #{error}" if error
 
         @collection[table] = collection
         after collection
@@ -48,13 +39,13 @@ class EasyMongo
     try
       params = _id: ensureObjectId id
     catch exception
-      console.log 'Error with preparing params for findById: ' + exception
+      console.log "Error with preparing params for findById: #{exception}"
       return after false
 
     @getInstance table, (collection) =>
       collection.find(params).toArray (error, results) =>
         if error
-          console.log 'Error with fetching document by id: ' + error
+          console.log "Error with fetching document by id: #{error}"
           return after false
 
         after if results and results.length is 1 then results[0] else false
@@ -63,19 +54,19 @@ class EasyMongo
     try
       params = _id: ensureObjectId id
     catch exception
-      console.log 'Error with preparing params for removeById: ' + exception
+      console.log "Error with preparing params for removeById: #{exception}"
       return after false
 
     @getInstance table, (collection) =>
       collection.findAndRemove params, (error, results) =>
         if error
-          console.log 'Error with removing document by id: ' + error
+          console.log "Error with removing document by id: #{error}"
           return after false
 
         after results
 
   find: (table, params, options, after) ->
-    [params, options, after] = @_normalizeArguments params, options, after
+    [params, options, after] = normalizeArguments params, options, after
 
     try
       if params?._id?
@@ -84,7 +75,7 @@ class EasyMongo
         else
           params._id = ensureObjectId params._id
     catch exception
-      console.log 'Error with preparing params for find: ' + exception
+      console.log "Error with preparing params for find: #{exception}"
       return after []
 
     @getInstance table, (collection) =>
@@ -96,7 +87,7 @@ class EasyMongo
 
       cursor.toArray (error, results) =>
         if error
-          console.log 'Error with fetching documents: ' + error
+          console.log "Error with fetching documents: #{error}"
           return after []
 
         after results
@@ -111,7 +102,7 @@ class EasyMongo
     @getInstance table, (collection) =>
       collection.count params, (error, results) =>
         if error
-          console.log 'Error with fetching counts: ' + error
+          console.log "Error with fetching counts: #{error}"
           return after false
 
         after parseInt results, 10
@@ -120,13 +111,13 @@ class EasyMongo
     try
       params._id = ensureObjectId params._id if params._id?
     catch exception
-      console.log 'Error with preparing params for save: ' + exception
+      console.log "Error with preparing params for save: #{exception}"
       return after false
 
     @getInstance table, (collection) =>
       collection.save params, safe: true, (error, results) =>
         if error
-          console.log 'Error with saving data: ' + error
+          console.log "Error with saving data: #{error}"
           return after false
 
         after if results is 1 then params else results
@@ -139,27 +130,36 @@ class EasyMongo
 
     @
 
-  Long: (number) -> new mongodb.Long number
-  ObjectID: (hex) -> ensureObjectId hex
-  Timestamp: () -> new mongodb.Timestamp()
+  Long: (number)          -> new mongodb.Long number
+  ObjectID: (hex)         -> ensureObjectId hex
+  Timestamp:              -> new mongodb.Timestamp()
   DBRef: (collection, id) -> new mongodb.DBRef collection, id
-  Binary: (buffer) -> new mongodb.Binary buffer
-  Symbol: (string) -> new mongodb.Symbol string
-  Double: (number) -> new mongodb.Double number
+  Binary: (buffer)        -> new mongodb.Binary buffer
+  Symbol: (string)        -> new mongodb.Symbol string
+  Double: (number)        -> new mongodb.Double number
 
-  _normalizeArguments: (params, options, after) ->
-    if isFunction params
-      after   = params
-      params  = null
-      options = {}
+ensureObjectId = (id) ->
+  if typeof id is 'string' then new mongodb.ObjectID id else id
 
-    if isFunction options
-      after   = options
-      options = {}
+isFunction = (obj) ->
+  toString.call(obj) is '[object Function]'
 
-    after   = (->) if not after
-    options = {}   if not options
+isObject = (obj) ->
+  obj is Object obj
 
-    [params, options, after]
+normalizeArguments = (params, options, after) ->
+  if isFunction params
+    after   = params
+    params  = null
+    options = {}
+
+  if isFunction options
+    after   = options
+    options = {}
+
+  after   = (->) if not after
+  options = {}   if not options
+
+  [params, options, after]
 
 module.exports = EasyMongo
