@@ -7,6 +7,7 @@
 
     <link rel="stylesheet" href="stylesheets/styles.css">
     <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -15,17 +16,18 @@
   <body>
     <div class="wrapper">
       <header>
-        <h1>Easymongo</h1>
-        <p>Simple with MongoDB</p>
-
-        <p class="view"><a href="https://github.com/meritt/easymongo">View the Project on GitHub <small>meritt/easymongo</small></a></p>
-
+        <h1 class="header">Easymongo</h1>
+        <p class="header">Simple with MongoDB</p>
 
         <ul>
-          <li><a href="https://github.com/meritt/easymongo/zipball/master">Download <strong>ZIP File</strong></a></li>
-          <li><a href="https://github.com/meritt/easymongo/tarball/master">Download <strong>TAR Ball</strong></a></li>
-          <li><a href="https://github.com/meritt/easymongo">View On <strong>GitHub</strong></a></li>
+          <li class="download"><a class="buttons" href="https://github.com/meritt/easymongo/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/meritt/easymongo/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/meritt/easymongo">View On GitHub</a></li>
         </ul>
+
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/meritt">meritt</a></p>
+
+
       </header>
       <section>
         <h1>Easy Mongo</h1>
@@ -36,16 +38,29 @@
 
 <span class="kd">var</span> <span class="nx">mongo</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">easymongo</span><span class="p">({</span><span class="nx">db</span><span class="o">:</span> <span class="s1">'test'</span><span class="p">});</span>
 
-<span class="nx">mongo</span><span class="p">.</span><span class="nx">find</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
-  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span> <span class="c1">// false if not found</span>
+<span class="nx">mongo</span><span class="p">.</span><span class="nx">save</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">,</span> <span class="nx">surname</span><span class="o">:</span> <span class="s1">'Simonenko'</span><span class="p">,</span> <span class="nx">url</span><span class="o">:</span> <span class="s1">'http://simonenko.su'</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span> <span class="c1">// Returns a new document (array).</span>
 <span class="p">});</span>
 
-<span class="nx">mongo</span><span class="p">.</span><span class="nx">save</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">,</span> <span class="nx">surname</span><span class="o">:</span> <span class="s1">'Simonenko'</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
-  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span> <span class="c1">// new mongo document</span>
+<span class="nx">mongo</span><span class="p">.</span><span class="nx">find</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">},</span> <span class="p">{</span><span class="nx">limit</span><span class="o">:</span> <span class="mi">1</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span> <span class="c1">// Always return array of documents.</span>
 <span class="p">});</span>
+
+<span class="nx">mongo</span><span class="p">.</span><span class="nx">count</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span> <span class="c1">// Amount (int). If error occur then returns false.</span>
+<span class="p">});</span>
+
+<span class="nx">mongo</span><span class="p">.</span><span class="nx">findById</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="s1">'4e4e1638c85e808431000003'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span> <span class="c1">// Returns a document (array). If error occur then returns false.</span>
+<span class="p">});</span>
+
+<span class="nx">mongo</span><span class="p">.</span><span class="nx">removeById</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="s1">'4e4e1638c85e808431000003'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span> <span class="c1">// Returns a deleted document (array). If error occur then returns false.</span>
+<span class="p">});</span>
+
 </pre></div>
 
-<h2>Install with NPM</h2>
+<hr><h2>Install with NPM</h2>
 
 <pre><code>npm install easymongo
 </code></pre>
@@ -53,11 +68,23 @@
 <h2>API</h2>
 
 <ul>
-<li>findById (table, id, <em>callback</em>)</li>
-<li>removeById (table, id, <em>callback</em>)</li>
-<li>find (table, params, <em>options</em>, <em>callback</em>)</li>
-<li>count (table, params, <em>callback</em>)</li>
-<li>save (table, data, <em>callback</em>)</li>
+<li>find (collection, params, <em>options</em>, <em>callback</em>)</li>
+<li>save (collection, params, <em>callback</em>)</li>
+<li>count (collection, params, <em>callback</em>)</li>
+<li>findById (collection, id, <em>callback</em>)</li>
+<li>removeById (collection, id, <em>callback</em>)</li>
+</ul><p>Non-Javascript BSON primitive types:</p>
+
+<ul>
+<li>ObjectID (string)</li>
+<li>DBRef (collection, id)</li>
+<li>Binary (buffer)</li>
+<li>Symbol (string)</li>
+<li>Long (number)</li>
+<li>Double (number)</li>
+<li>Timestamp</li>
+<li>MinKey</li>
+<li>MaxKey</li>
 </ul><h2>Author</h2>
 
 <ul>
@@ -67,12 +94,11 @@
 </ul>
       </section>
       <footer>
-        <p>This project is maintained by <a href="https://github.com/meritt">meritt</a></p>
-        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
       </footer>
     </div>
-    <script src="javascripts/scale.fix.js"></script>
-              <script type="text/javascript">
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		          <script type="text/javascript">
             var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
             document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
           </script>
