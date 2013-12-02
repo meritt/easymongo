@@ -33,29 +33,28 @@
         <p>It's a small exstension for <a href="https://github.com/mongodb/node-mongodb-native">Mongo DB Native NodeJS Driver</a>.</p>
 
 <div class="highlight highlight-javascript"><pre><span class="kd">var</span> <span class="nx">easymongo</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'easymongo'</span><span class="p">);</span>
-
 <span class="kd">var</span> <span class="nx">mongo</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">easymongo</span><span class="p">({</span><span class="nx">db</span><span class="o">:</span> <span class="s1">'test'</span><span class="p">});</span>
 
-<span class="nx">mongo</span><span class="p">.</span><span class="nx">save</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">,</span> <span class="nx">surname</span><span class="o">:</span> <span class="s1">'Simonenko'</span><span class="p">,</span> <span class="nx">url</span><span class="o">:</span> <span class="s1">'http://simonenko.su'</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+<span class="kd">var</span> <span class="nx">data</span> <span class="o">=</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">,</span> <span class="nx">surname</span><span class="o">:</span> <span class="s1">'Simonenko'</span><span class="p">,</span> <span class="nx">url</span><span class="o">:</span> <span class="s1">'http://simonenko.su'</span><span class="p">};</span>
+<span class="nx">mongo</span><span class="p">.</span><span class="nx">save</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="nx">data</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
   <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span> <span class="c1">// Returns a new document (array).</span>
 <span class="p">});</span>
 
-<span class="nx">mongo</span><span class="p">.</span><span class="nx">find</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">},</span> <span class="p">{</span><span class="nx">limit</span><span class="o">:</span> <span class="mi">1</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+<span class="nx">mongo</span><span class="p">.</span><span class="nx">find</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">},</span> <span class="p">{</span><span class="nx">limit</span><span class="o">:</span> <span class="mi">1</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
   <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span> <span class="c1">// Always return array of documents.</span>
 <span class="p">});</span>
 
-<span class="nx">mongo</span><span class="p">.</span><span class="nx">count</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+<span class="nx">mongo</span><span class="p">.</span><span class="nx">count</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
   <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span> <span class="c1">// Amount (int). If error occur then returns false.</span>
 <span class="p">});</span>
 
-<span class="nx">mongo</span><span class="p">.</span><span class="nx">findById</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="s1">'4e4e1638c85e808431000003'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+<span class="nx">mongo</span><span class="p">.</span><span class="nx">findById</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="s1">'4e4e1638c85e808431000003'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
   <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span> <span class="c1">// Returns a document (array). If error occur then returns false.</span>
 <span class="p">});</span>
 
-<span class="nx">mongo</span><span class="p">.</span><span class="nx">removeById</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="s1">'4e4e1638c85e808431000003'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+<span class="nx">mongo</span><span class="p">.</span><span class="nx">removeById</span><span class="p">(</span><span class="s1">'users'</span><span class="p">,</span> <span class="s1">'4e4e1638c85e808431000003'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
   <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span> <span class="c1">// Returns a deleted document (array). If error occur then returns false.</span>
 <span class="p">});</span>
-
 </pre></div>
 
 <hr><h2>
@@ -92,13 +91,13 @@
 <li>
 <a href="mailto:alexey@simonenko.su">Alexey Simonenko</a>, <a href="http://simonenko.su">simonenko.su</a>
 </li>
-</ul><hr><h2>
+</ul><h2>
 <a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>License</h2>
 
 <p>The MIT License, see the included <code>license.md</code> file.</p>
       </section>
       <footer>
-        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+        <p><small>Hosted on <a href="http://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
       </footer>
     </div>
     <!--[if !IE]><script>fixScale(document);</script><![endif]-->
