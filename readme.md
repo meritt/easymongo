@@ -4,40 +4,37 @@ It's a small exstension for [Mongo DB Native NodeJS Driver](https://github.com/m
 
 ```javascript
 var easymongo = require('easymongo');
-
 var mongo = new easymongo({db: 'test'});
 
-mongo.save('users', {name: 'Alexey', surname: 'Simonenko', url: 'http://simonenko.su'}, function(results) {
+var data = {name: 'Alexey', surname: 'Simonenko', url: 'http://simonenko.su'};
+mongo.save('users', data, function(error, results) {
   console.log(results); // Returns a new document (array).
 });
 
-mongo.find('users', {name: 'Alexey'}, {limit: 1}, function(results) {
+mongo.find('users', {name: 'Alexey'}, {limit: 1}, function(error, results) {
   console.log(results); // Always return array of documents.
 });
 
-mongo.count('users', {name: 'Alexey'}, function(results) {
+mongo.count('users', {name: 'Alexey'}, function(error, results) {
   console.log(results); // Amount (int). If error occur then returns false.
 });
 
-mongo.findById('users', '4e4e1638c85e808431000003', function(results) {
+mongo.findById('users', '4e4e1638c85e808431000003', function(error, results) {
   console.log(results); // Returns a document (array). If error occur then returns false.
 });
 
-mongo.removeById('users', '4e4e1638c85e808431000003', function(results) {
+mongo.removeById('users', '4e4e1638c85e808431000003', function(error, results) {
   console.log(results); // Returns a deleted document (array). If error occur then returns false.
 });
-
 ```
 
 ----------------
 
-Install with NPM
-----------------
+## Install with NPM
 
 	npm install easymongo
 
-API
----
+## API
 
 * find (collection, params, *options*, *callback*)
 * save (collection, params, *callback*)
@@ -57,12 +54,9 @@ Non-Javascript BSON primitive types:
 * MinKey
 * MaxKey
 
-Author
-------
+## Author
 
 * [Alexey Simonenko](mailto:alexey@simonenko.su), [simonenko.su](http://simonenko.su)
-
----
 
 ## License
 
