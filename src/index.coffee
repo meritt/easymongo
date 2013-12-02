@@ -51,8 +51,7 @@ class EasyMongo
         else
           params._id = ensureObjectId params._id
     catch exception
-      console.log "Error with preparing params for find: #{exception}"
-      return after []
+      return after "Error with preparing params for find: #{exception}", []
 
     @getInstance table, (collection) =>
       cursor = collection.find params
@@ -62,71 +61,49 @@ class EasyMongo
       cursor.skip  options.skip  if options.skip
 
       cursor.toArray (error, results) =>
-        if error
-          console.log "Error with fetching documents: #{error}"
-          return after []
-
-        after results
+        return after "Error with fetching documents: #{error}", [] if error
+        return after null, results
 
   save: (table, params, after = ->) ->
     try
       params._id = ensureObjectId params._id if params._id?
     catch exception
-      console.log "Error with preparing params for save: #{exception}"
-      return after false
+      return after "Error with preparing params for save: #{exception}", false
 
     @getInstance table, (collection) =>
       collection.save params, safe: true, (error, results) =>
-        if error
-          console.log "Error with saving data: #{error}"
-          return after false
-
-        after if results is 1 then params else results
+        return after "Error with saving data: #{error}", false if error
+        return after null, if results is 1 then params else results
 
   count: (table, params, after) ->
-    if isFunction params
-      after   = params
-      params  = null
-
-    after = (->) if after is null
+    [params, options, after] = normalizeArguments params, after
 
     @getInstance table, (collection) =>
       collection.count params, (error, results) =>
-        if error
-          console.log "Error with fetching counts: #{error}"
-          return after false
-
-        after parseInt results, 10
+        return after "Error with fetching counts: #{error}", false if error
+        return after null, parseInt results, 10
 
   findById: (table, id, after = ->) ->
     try
       params = _id: ensureObjectId id
     catch exception
-      console.log "Error with preparing params for findById: #{exception}"
-      return after false
+      return after "Error with preparing params for findById: #{exception}", false
 
     @getInstance table, (collection) =>
       collection.find(params).toArray (error, results) =>
-        if error
-          console.log "Error with fetching document by id: #{error}"
-          return after false
-
-        after if results and results.length is 1 then results[0] else false
+        return after "Error with fetching document by id: #{error}", false if error
+        return after null, if results and results.length is 1 then results[0] else false
 
   removeById: (table, id, after = ->) ->
     try
       params = _id: ensureObjectId id
     catch exception
-      console.log "Error with preparing params for removeById: #{exception}"
-      return after false
+      return after "Error with preparing params for removeById: #{exception}", false
 
     @getInstance table, (collection) =>
       collection.findAndRemove params, (error, results) =>
-        if error
-          console.log "Error with removing document by id: #{error}"
-          return after false
-
-        after results
+        return after "Error with removing document by id: #{error}", false if error
+        return after null, results
 
   Long: (number)          -> new mongodb.Long number
   ObjectID: (hex)         -> ensureObjectId hex
