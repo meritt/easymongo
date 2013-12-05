@@ -1,38 +1,45 @@
-# Easy Mongo
+# Easiest mongodb
 
 It's a small exstension for [Mongo DB Native NodeJS Driver](https://github.com/mongodb/node-mongodb-native).
 
-```javascript
+## Installation
+
+```
+$ npm install easymongo
+```
+
+## Examples
+
+```js
 var easymongo = require('easymongo');
 var mongo = new easymongo({db: 'test'});
 
 var data = {name: 'Alexey', surname: 'Simonenko', url: 'http://simonenko.su'};
 mongo.save('users', data, function(error, results) {
-  console.log(results); // Returns a new document (array).
+  // Returns a new document (array).
+  console.log(results);
 });
 
 mongo.find('users', {name: 'Alexey'}, {limit: 1}, function(error, results) {
-  console.log(results); // Always return array of documents.
+  // Always return array of documents.
+  console.log(results);
 });
 
 mongo.count('users', {name: 'Alexey'}, function(error, results) {
-  console.log(results); // Amount (int). If error occur then returns false.
+  // Amount (int). If error occur then returns false.
+  console.log(results);
 });
 
 mongo.findById('users', '4e4e1638c85e808431000003', function(error, results) {
-  console.log(results); // Returns a document (array). If error occur then returns false.
+  // Returns a document (array). If error occur then returns false.
+  console.log(results);
 });
 
 mongo.removeById('users', '4e4e1638c85e808431000003', function(error, results) {
-  console.log(results); // Returns a deleted document (array). If error occur then returns false.
+  // Returns a deleted document (array). If error occur then returns false.
+  console.log(results);
 });
 ```
-
-----------------
-
-## Install with NPM
-
-	npm install easymongo
 
 ## API
 
