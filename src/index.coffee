@@ -3,7 +3,7 @@ utils = require './utils'
 mongodb = require 'mongodb'
 client  = mongodb.MongoClient
 
-class Easymongo
+class EasyMongo
   url: null
 
   constructor: (server, @options = {}) ->
@@ -128,4 +128,4 @@ prepare = (params) ->
 
   params
 
-module.exports = Easymongo
+module.exports = EasyMongo

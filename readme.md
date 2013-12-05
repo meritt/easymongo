@@ -48,6 +48,15 @@ mongo.removeById('users', '4e4e1638c85e808431000003', function(error, results) {
 
 ## API
 
+#### Constructor
+
+Arguments:
+
+  * server (string || object) — [connection url](http://docs.mongodb.org/manual/reference/connection-string/) to MongoDB or object with host, port and dbname
+  * options (object) — [optional options](http://mongodb.github.io/node-mongodb-native/api-generated/mongoclient.html#connect) for insert command
+
+#### Methods
+
 * find (collection[, params][, options][, callback])
 * findById (collection, id[, callback])
 * save (collection, params[, callback])
