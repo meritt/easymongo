@@ -1,142 +1,131 @@
-mongodb      = require 'mongodb'
-{Db, Server} = mongodb
+utils = require './utils'
+
+mongodb = require 'mongodb'
+client  = mongodb.MongoClient
 
 class EasyMongo
-  db: null
+  url: null
 
-  collection: {}
+  constructor: (server, @options = {}) ->
+    if not utils.is.obj(server) and not utils.is.str(server)
+      throw new Error 'Connection url to mongo must be specified'
 
-  constructor: (@options) ->
-    @options.host = '127.0.0.1' unless @options.host?
-    @options.port = 27017       unless @options.port?
-
-  getInstance: (table, after) ->
-    throw new Error 'The database name must be configured (options.db)' unless @options.db?
-
-    if @db isnt null and @db.state and @db.state is 'connected'
-      @getCollection table, after
+    if utils.is.str(server)
+      @url = server
     else
-      server = new Server @options.host, @options.port, auto_reconnect: true
-      instance = new Db @options.db, server, safe: true
+      if not server.dbname
+        throw new Error 'The db name must be configured (server.dbname)'
 
-      instance.open (error, db) =>
-        console.log "Error with connection to MongoDB server: #{error}" if error
+      server.host = '127.0.0.1' if not server.host
+      server.port = '27017'     if not server.port
 
-        @db = db
-        @getCollection table, after
+      @url = "mongodb://#{server.host}:#{server.port}/#{server.dbname}"
 
-  getCollection: (table, after) ->
-    if @collection[table]?
-      after @collection[table]
-    else
-      @db.collection table, (error, collection) =>
-        console.log "Error with fetching collection: #{error}" if error
+  find: (table, params, options, fn) ->
+    {params, options, fn} = utils.normalize params, options, fn
 
-        @collection[table] = collection
-        after collection
+    connect @, table, (collection) ->
+      cursor = collection.find prepare params
+
+      if options
+        cursor.limit options.limit if options.limit
+        cursor.skip options.skip if options.skip
+        cursor.sort options.sort if options.sort
+
+      cursor.toArray (error, results) ->
+        results = [] if error
+        fn error, results
+
+  findById: (table, id, fn) ->
+    {fn} = utils.normalize fn
+
+    connect @, table, (collection) ->
+      cursor = collection.find _id: objectId id
+      cursor.limit = 1
+
+      cursor.toArray (error, results) ->
+        results = [] if error
+        results = results[0] ? false
+        fn error, results
+
+  save: (table, params, fn) ->
+    {params, fn} = utils.normalize params, fn
+
+    connect @, table, (collection) ->
+      params = prepare params
+      collection.save params, (error, results) ->
+        results = false if error
+        results = params if results is 1
+        fn error, results
+
+  remove: (table, params, fn) ->
+    {params, fn} = utils.normalize params, fn
+
+    connect @, table, (collection) ->
+      params = prepare params
+
+      collection.remove params, (error, results) ->
+        results = false if error
+        fn error, results > 0
+
+  removeById: (table, id, fn) ->
+    @remove table, _id: objectId(id), fn
+
+  count: (table, params, fn) ->
+    {params, fn} = utils.normalize params, fn
+
+    connect @, table, (collection) ->
+      params = prepare params
+
+      collection.count params, (error, results) ->
+        results = false if error
+        fn error, parseInt(results, 10) or 0
+
+  collection: (table, fn) ->
+    {fn} = utils.normalize fn
+
+    connect @, table, (collection) ->
+      fn collection
 
   close: ->
-    if @db isnt null
-      @collection = {} if @collection isnt {}
-      @db.close()
-      @db = null
+    return false if not @db
 
-  find: (table, params, options, after) ->
-    [params, options, after] = normalizeArguments params, options, after
+    @db.close()
+    @db = null
 
-    try
-      if params?._id?
-        if isObject(params._id) and params._id.$in?
-          params._id.$in = params._id.$in.map (value) -> ensureObjectId value
-        else
-          params._id = ensureObjectId params._id
-    catch exception
-      return after "Error with preparing params for find: #{exception}", []
+    return true
 
-    @getInstance table, (collection) =>
-      cursor = collection.find params
 
-      cursor.sort  options.sort  if options.sort
-      cursor.limit options.limit if options.limit
-      cursor.skip  options.skip  if options.skip
+connect = (self, table, fn) ->
+  db = self.db
 
-      cursor.toArray (error, results) =>
-        return after "Error with fetching documents: #{error}", [] if error
-        return after null, results
+  if db and db.state and db.state is 'connected'
+    fn db.collection table
+  else
+    client.connect self.url, self.options, (error, db) ->
+      throw error if error
 
-  save: (table, params, after = ->) ->
-    try
-      params._id = ensureObjectId params._id if params._id?
-    catch exception
-      return after "Error with preparing params for save: #{exception}", false
+      self.db = db
+      fn db.collection table
 
-    @getInstance table, (collection) =>
-      collection.save params, safe: true, (error, results) =>
-        return after "Error with saving data: #{error}", false if error
-        return after null, if results is 1 then params else results
+      return
+  return
 
-  count: (table, params, after) ->
-    [params, options, after] = normalizeArguments params, after
+objectId = (value) ->
+  if utils.is.str(value)
+    value = new mongodb.ObjectID value
+  value
 
-    @getInstance table, (collection) =>
-      collection.count params, (error, results) =>
-        return after "Error with fetching counts: #{error}", false if error
-        return after null, parseInt results, 10
+prepare = (params) ->
+  return null if not params
+  return params if not params._id
 
-  findById: (table, id, after = ->) ->
-    try
-      params = _id: ensureObjectId id
-    catch exception
-      return after "Error with preparing params for findById: #{exception}", false
+  if utils.is.obj(params._id) and utils.is.arr(params._id.$in)
+    params._id.$in = params._id.$in.map (value) ->
+      objectId value
+  else
+    params._id = objectId params._id
 
-    @getInstance table, (collection) =>
-      collection.find(params).toArray (error, results) =>
-        return after "Error with fetching document by id: #{error}", false if error
-        return after null, if results and results.length is 1 then results[0] else false
-
-  removeById: (table, id, after = ->) ->
-    try
-      params = _id: ensureObjectId id
-    catch exception
-      return after "Error with preparing params for removeById: #{exception}", false
-
-    @getInstance table, (collection) =>
-      collection.findAndRemove params, (error, results) =>
-        return after "Error with removing document by id: #{error}", false if error
-        return after null, results
-
-  Long: (number)          -> new mongodb.Long number
-  ObjectID: (hex)         -> ensureObjectId hex
-  Timestamp:              -> new mongodb.Timestamp()
-  DBRef: (collection, id) -> new mongodb.DBRef collection, id
-  Binary: (buffer)        -> new mongodb.Binary buffer
-  Symbol: (string)        -> new mongodb.Symbol string
-  MinKey:                 -> new mongodb.MinKey()
-  MaxKey:                 -> new mongodb.MaxKey()
-  Double: (number)        -> new mongodb.Double number
-
-ensureObjectId = (id) ->
-  if typeof id is 'string' then new mongodb.ObjectID id else id
-
-isFunction = (obj) ->
-  toString.call(obj) is '[object Function]'
-
-isObject = (obj) ->
-  obj is Object obj
-
-normalizeArguments = (params, options, after) ->
-  if isFunction params
-    after   = params
-    params  = null
-    options = {}
-
-  if isFunction options
-    after   = options
-    options = {}
-
-  after   = (->) if not after
-  options = {}   if not options
-
-  [params, options, after]
+  params
 
 module.exports = EasyMongo

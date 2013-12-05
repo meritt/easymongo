@@ -1,58 +1,70 @@
-# Easy Mongo
+# Easiest mongodb
 
-It's a small exstension for [Mongo DB Native NodeJS Driver](https://github.com/mongodb/node-mongodb-native).
+This is a small extension for quick work with [MongoDB native driver](https://github.com/mongodb/node-mongodb-native).
 
-```javascript
-var easymongo = require('easymongo');
-var mongo = new easymongo({db: 'test'});
+## Installation
+
+```
+$ npm install easymongo
+```
+
+## Examples
+
+```js
+var EasyMongo = require('easymongo');
+var mongo = new EasyMongo({dbname: 'test'});
 
 var data = {name: 'Alexey', surname: 'Simonenko', url: 'http://simonenko.su'};
 mongo.save('users', data, function(error, results) {
-  console.log(results); // Returns a new document (array).
+  // Returns a new document (array).
+  console.log(results);
 });
 
 mongo.find('users', {name: 'Alexey'}, {limit: 1}, function(error, results) {
-  console.log(results); // Always return array of documents.
-});
-
-mongo.count('users', {name: 'Alexey'}, function(error, results) {
-  console.log(results); // Amount (int). If error occur then returns false.
+  // Always return array of documents.
+  console.log(results);
 });
 
 mongo.findById('users', '4e4e1638c85e808431000003', function(error, results) {
-  console.log(results); // Returns a document (array). If error occur then returns false.
+  // Returns a document (object). If error occur then returns false.
+  console.log(results);
+});
+
+mongo.count('users', {name: 'Alexey'}, function(error, results) {
+  // Amount (int). If error occur then returns zero.
+  console.log(results);
+});
+
+mongo.remove('users', {name: 'Alexey'}, function(error, results) {
+  // Returns a result of operation (boolean). If error occur then returns false.
+  console.log(results);
 });
 
 mongo.removeById('users', '4e4e1638c85e808431000003', function(error, results) {
-  console.log(results); // Returns a deleted document (array). If error occur then returns false.
+  // Returns a result of operation (boolean). If error occur then returns false.
+  console.log(results);
 });
 ```
 
-----------------
-
-## Install with NPM
-
-	npm install easymongo
-
 ## API
 
-* find (collection, params, *options*, *callback*)
-* save (collection, params, *callback*)
-* count (collection, params, *callback*)
-* findById (collection, id, *callback*)
-* removeById (collection, id, *callback*)
+#### Constructor
 
-Non-Javascript BSON primitive types:
+Arguments:
 
-* ObjectID (string)
-* DBRef (collection, id)
-* Binary (buffer)
-* Symbol (string)
-* Long (number)
-* Double (number)
-* Timestamp
-* MinKey
-* MaxKey
+  * server (string || object) — [connection url](http://docs.mongodb.org/manual/reference/connection-string/) to MongoDB or object with host, port and dbname
+  * options (object) — [optional options](http://mongodb.github.io/node-mongodb-native/api-generated/mongoclient.html#connect) for insert command
+
+#### Methods
+
+* find (collection[, params][, options][, callback])
+* findById (collection, id[, callback])
+* save (collection, params[, callback])
+* remove (collection[, params][, callback])
+* removeById (collection, id[, callback])
+* count (collection[, params][, callback])
+* collection (collection, callback)
+* close ()
 
 ## Author
 
