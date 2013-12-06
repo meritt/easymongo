@@ -53,6 +53,7 @@ class EasyMongo
 
     connect @, table, (collection) ->
       params = prepare params
+
       collection.save params, (error, results) ->
         results = false if error
         results = params if results is 1
@@ -118,7 +119,11 @@ objectId = (value) ->
 
 prepare = (params) ->
   return null if not params
-  return params if not params._id
+  return params if not params._id or not params.id
+
+  if not params._id and params.id
+    params._id = params.id
+    delete params.id
 
   if utils.is.obj(params._id) and utils.is.arr(params._id.$in)
     params._id.$in = params._id.$in.map (value) ->
