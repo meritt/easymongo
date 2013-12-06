@@ -119,7 +119,7 @@ objectId = (value) ->
 
 prepare = (params) ->
   return null if not params
-  return params if not params._id or not params.id
+  return params if not params._id and not params.id
 
   if not params._id and params.id
     params._id = params.id
