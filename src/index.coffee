@@ -125,9 +125,14 @@ prepare = (params) ->
     params._id = params.id
     delete params.id
 
-  if utils.is.obj(params._id) and utils.is.arr(params._id.$in)
-    params._id.$in = params._id.$in.map (value) ->
-      objectId value
+  if utils.is.obj(params._id)
+    operator = false
+    operator = '$in'  if utils.is.arr(params._id.$in)
+    operator = '$nin' if utils.is.arr(params._id.$nin)
+
+    if operator
+      params._id[operator] = params._id[operator].map (value) ->
+        objectId value
   else
     params._id = objectId params._id
 
