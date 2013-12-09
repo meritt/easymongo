@@ -1,4 +1,6 @@
-# Easiest mongodb [![NPM version](https://badge.fury.io/js/easymongo.png)](http://badge.fury.io/js/easymongo) [![Dependency Status](https://david-dm.org/meritt/easymongo.png)](https://david-dm.org/meritt/easymongo)
+# Easiest mongodb
+
+[![NPM version](https://badge.fury.io/js/easymongo.png)](http://badge.fury.io/js/easymongo) [![Dependency Status](https://david-dm.org/meritt/easymongo.png)](https://david-dm.org/meritt/easymongo)
 
 This is a small extension for quick work with [MongoDB native driver](https://github.com/mongodb/node-mongodb-native).
 
@@ -73,3 +75,5 @@ Arguments:
 ## License
 
 The MIT License, see the included `license.md` file.
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/meritt/easymongo/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
