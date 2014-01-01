@@ -1,0 +1,30 @@
+var emongo = require('..');
+
+describe('Easymongo constructor', function() {
+  it('should throw error if connection url not specified', function() {
+    var poor = [undefined, null, true, false, 10, [], ['10', '20'], function() {}];
+
+    for (var i=0, length=poor.length; i<length; i++) {
+      (function() {
+        var mongo = new emongo(poor[i]);
+      }).should.throw('Connection url to mongo must be specified');
+    }
+  });
+
+  it('should set connection url from string', function() {
+    var mongo = new emongo('mongodb://localhost:27017/test');
+    mongo.url.should.be.eql('mongodb://localhost:27017/test');
+  });
+
+  it('should set connection url from object', function() {
+    var mongo = new emongo({dbname: 'test'});
+    mongo.url.should.be.eql('mongodb://127.0.0.1:27017/test');
+
+    var mongo = new emongo({host: 'localhost', dbname: 'test'});
+    mongo.url.should.be.eql('mongodb://localhost:27017/test');
+
+    (function() {
+      var mongo = new emongo({host: 'localhost'});
+    }).should.throw('The db name must be configured (server.dbname)');
+  });
+});

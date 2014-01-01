@@ -1,0 +1,6 @@
+--reporter spec
+--require should
+--bail
+
+test/constructor.js
+test/index.js
