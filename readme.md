@@ -1,6 +1,6 @@
 # Easiest mongodb
 
-[![NPM version](https://badge.fury.io/js/easymongo.png)](http://badge.fury.io/js/easymongo) [![Dependency Status](https://david-dm.org/meritt/easymongo.png)](https://david-dm.org/meritt/easymongo) [![devDependency Status](https://david-dm.org/meritt/easymongo/dev-status.png)](https://david-dm.org/meritt/easymongo#info=devDependencies)
+[![NPM version](https://badge.fury.io/js/easymongo.png)](http://badge.fury.io/js/easymongo) [![Build Status](https://travis-ci.org/meritt/easymongo.png?branch=master)](https://travis-ci.org/meritt/easymongo) [![Dependency Status](https://david-dm.org/meritt/easymongo.png)](https://david-dm.org/meritt/easymongo) [![devDependency Status](https://david-dm.org/meritt/easymongo/dev-status.png)](https://david-dm.org/meritt/easymongo#info=devDependencies)
 
 This is a small extension for quick work with [MongoDB native driver](https://github.com/mongodb/node-mongodb-native).
 
