@@ -36,12 +36,19 @@ class Easymongo
         results = [] if error
         fn error, results
 
+        return
+      return
+    return
+
   findById: (table, id, fn) ->
     {fn} = utils.normalize fn
 
     @find table, {_id: id}, {limit: 1}, (error, results) ->
       results = results[0] ? false
       fn error, results
+
+      return
+    return
 
   save: (table, params, fn) ->
     {params, fn} = utils.normalize params, fn
@@ -54,6 +61,10 @@ class Easymongo
         results = params if results is 1
         fn error, results
 
+        return
+      return
+    return
+
   remove: (table, params, fn) ->
     {params, fn} = utils.normalize params, fn
 
@@ -64,8 +75,13 @@ class Easymongo
         results = false if error
         fn error, results > 0
 
+        return
+      return
+    return
+
   removeById: (table, id, fn) ->
     @remove table, _id: objectId(id), fn
+    return
 
   count: (table, params, fn) ->
     {params, fn} = utils.normalize params, fn
@@ -77,11 +93,18 @@ class Easymongo
         results = false if error
         fn error, parseInt(results, 10) or 0
 
+        return
+      return
+    return
+
   collection: (table, fn) ->
     {fn} = utils.normalize fn
 
     connect @, table, (collection) ->
       fn collection
+
+      return
+    return
 
   close: ->
     return false if not @db
@@ -110,7 +133,8 @@ connect = (self, table, fn) ->
 objectId = (value) ->
   if utils.is.str(value)
     value = new mongodb.ObjectID value
-  value
+
+  return value
 
 prepare = (params) ->
   return null if not params
@@ -131,6 +155,6 @@ prepare = (params) ->
   else
     params._id = objectId params._id
 
-  params
+  return params
 
 module.exports = Easymongo
