@@ -13,8 +13,8 @@ $ npm install easymongo
 ## Examples
 
 ```js
-var EasyMongo = require('easymongo');
-var mongo = new EasyMongo({dbname: 'test'});
+var Easymongo = require('easymongo');
+var mongo = new Easymongo({dbname: 'test'});
 
 var data = {name: 'Alexey', surname: 'Simonenko', url: 'http://simonenko.su'};
 mongo.save('users', data, function(error, results) {
