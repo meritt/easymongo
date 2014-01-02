@@ -39,14 +39,9 @@ class Easymongo
   findById: (table, id, fn) ->
     {fn} = utils.normalize fn
 
-    connect @, table, (collection) ->
-      cursor = collection.find _id: objectId id
-      cursor.limit = 1
-
-      cursor.toArray (error, results) ->
-        results = [] if error
-        results = results[0] ? false
-        fn error, results
+    @find table, {_id: id}, {limit: 1}, (error, results) ->
+      results = results[0] ? false
+      fn error, results
 
   save: (table, params, fn) ->
     {params, fn} = utils.normalize params, fn
