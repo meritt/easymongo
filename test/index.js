@@ -242,12 +242,12 @@ describe('Easymongo', function() {
 
       res.should.have.property('insert');
       res.insert([
-        {name: 'a'},
-        {name: 'b'},
-        {name: 'c'},
-        {name: 'd'},
-        {name: 'e'},
-        {name: 'f'}
+        {test: 'a'},
+        {test: 'b'},
+        {test: 'c'},
+        {test: 'd'},
+        {test: 'e'},
+        {test: 'f'}
       ], function(err, docs) {
         should(err).equal(null);
         should(docs).be.ok;
@@ -258,5 +258,27 @@ describe('Easymongo', function() {
         done();
       });
     })
+  });
+
+  it('should find documents with advanced options', function(done) {
+    var query = {test: {$exists: true}};
+    var options = {
+      limit: 2,
+      skip: 2,
+      sort: {test: -1}
+    };
+
+    mongo.find(collection, query, options, function(err, res) {
+      should(err).equal(null);
+      should(res).be.ok;
+
+      res.should.be.instanceof(Array);
+      res.should.have.length(2);
+
+      res[0].test.should.eql('d');
+      res[1].test.should.eql('c');
+
+      done();
+    });
   });
 });
