@@ -30,7 +30,7 @@ describe('Easymongo', function() {
   it('should return empty array if nothing found', function(done) {
     mongo.find(collection, {name: 'Alexey'}, function(err, res) {
       should(err).equal(null);
-      res.should.be.an.instanceof(Array);
+      res.should.be.instanceof(Array);
       res.should.have.length(0);
 
       done();
@@ -60,7 +60,7 @@ describe('Easymongo', function() {
       should(err).equal(null);
       should(a).be.ok;
 
-      a.should.be.an.instanceof(Object);
+      a.should.be.instanceof(Object);
       a.should.have.property('_id');
       a.should.have.property('url', 'simonenko.su');
 
@@ -68,7 +68,7 @@ describe('Easymongo', function() {
         should(err).equal(null);
         should(b).be.ok;
 
-        b.should.be.an.instanceof(Object);
+        b.should.be.instanceof(Object);
         b.should.have.property('_id');
         b.should.have.property('url', 'chocolatejs.ru');
 
@@ -76,7 +76,7 @@ describe('Easymongo', function() {
           should(err).equal(null);
           should(c).be.ok;
 
-          c.should.be.an.instanceof(Object);
+          c.should.be.instanceof(Object);
           c.should.have.property('_id');
           c.should.have.property('url', 'simonenko.su');
 
@@ -98,7 +98,7 @@ describe('Easymongo', function() {
       should(err).equal(null);
       should(res).be.ok;
 
-      res.should.be.an.instanceof(Array);
+      res.should.be.instanceof(Array);
       res.should.have.length(2);
       res[0].should.have.property('_id');
 
@@ -113,7 +113,7 @@ describe('Easymongo', function() {
           should(err).equal(null);
           should(res).be.ok;
 
-          res.should.be.an.instanceof(Object);
+          res.should.be.instanceof(Object);
           res.should.have.property('_id');
 
           done();
@@ -127,7 +127,7 @@ describe('Easymongo', function() {
       should(err).equal(null);
       should(res).be.ok;
 
-      res.should.be.an.instanceof(Array);
+      res.should.be.instanceof(Array);
       res.should.have.length(1);
 
       res[0].name = 'Eva';
@@ -136,7 +136,7 @@ describe('Easymongo', function() {
         should(err).equal(null);
         should(doc).be.ok;
 
-        doc.should.be.an.instanceof(Object);
+        doc.should.be.instanceof(Object);
         doc.should.have.property('_id');
         doc.name.should.be.eql('Eva');
 
@@ -155,7 +155,7 @@ describe('Easymongo', function() {
       should(err).equal(null);
       should(res).be.ok;
 
-      res.should.be.an.instanceof(Array);
+      res.should.be.instanceof(Array);
       res.should.have.length(2);
 
       done();
@@ -172,7 +172,7 @@ describe('Easymongo', function() {
     }
 
     should(err).not.equal(null);
-    should(err).be.an.instanceof(Error);
+    should(err).be.instanceof(Error);
   });
 
   it('should throw error if ObjectID not valid (removeById)', function() {
@@ -185,7 +185,7 @@ describe('Easymongo', function() {
     }
 
     should(err).not.equal(null);
-    should(err).be.an.instanceof(Error);
+    should(err).be.instanceof(Error);
   });
 
   it('should throw error if ObjectID not valid (find)', function() {
@@ -198,7 +198,7 @@ describe('Easymongo', function() {
     }
 
     should(err).not.equal(null);
-    should(err).be.an.instanceof(Error);
+    should(err).be.instanceof(Error);
   });
 
   it('should throw error if ObjectID not valid (in advanced query)', function() {
@@ -211,6 +211,52 @@ describe('Easymongo', function() {
     }
 
     should(err).not.equal(null);
-    should(err).be.an.instanceof(Error);
+    should(err).be.instanceof(Error);
+  });
+
+  it('should have db property and can close connection', function() {
+    should(mongo.db).be.ok;
+    mongo.db.should.be.instanceof(Object);
+    mongo.db.should.have.property('constructor');
+    mongo.db.constructor.should.have.property('name');
+    mongo.db.constructor.name.should.be.eql('Db');
+
+    var res = mongo.close();
+    res.should.be.true;
+    should(mongo.db).equal(null);
+
+    var res = mongo.close();
+    res.should.be.false;
+    should(mongo.db).equal(null);
+  });
+
+  it('should return collection object for native operations', function(done) {
+    mongo = new emongo({dbname: 'test'});
+
+    mongo.collection(collection, function(res) {
+      should(res).be.ok;
+      res.should.be.instanceof(Object);
+      res.should.have.property('constructor');
+      res.constructor.should.have.property('name');
+      res.constructor.name.should.be.eql('Collection');
+
+      res.should.have.property('insert');
+      res.insert([
+        {name: 'a'},
+        {name: 'b'},
+        {name: 'c'},
+        {name: 'd'},
+        {name: 'e'},
+        {name: 'f'}
+      ], function(err, docs) {
+        should(err).equal(null);
+        should(docs).be.ok;
+
+        docs.should.be.instanceof(Array);
+        docs.should.have.length(6);
+
+        done();
+      });
+    })
   });
 });
