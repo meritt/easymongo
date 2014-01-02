@@ -1,21 +1,24 @@
-util = require 'util'
+fun = (f) -> typeof f is 'function'
+str = (s) -> typeof s is 'string'
+arr = (a) -> a instanceof Array
+obj = (o) -> o instanceof Object and not fun(o) and not arr(o)
 
 exports.is =
-  fun: util.isFunction
-  str: util.isString
-  arr: util.isArray
-  obj: util.isObject
+  fun: fun
+  str: str
+  arr: arr
+  obj: obj
 
 exports.normalize = (params, options, fn) ->
-  if util.isFunction params
+  if fun params
     fn = params
     params = null
     options = null
-  else if util.isFunction options
+  else if fun options
     fn = options
     options = null
 
-  if not util.isFunction fn
+  if not fun fn
     fn = ->
 
   {params, options, fn}
