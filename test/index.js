@@ -150,6 +150,18 @@ describe('Easymongo', function() {
     });
   });
 
+  it('should works with id property', function(done) {
+    mongo.find(collection, {id: {$nin: [oid]}}, function(err, res) {
+      should(err).equal(null);
+      should(res).be.ok;
+
+      res.should.be.an.instanceof(Array);
+      res.should.have.length(2);
+
+      done();
+    });
+  });
+
   it('should throw error if ObjectID not valid (findById)', function() {
     var err;
 
