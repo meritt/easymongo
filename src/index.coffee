@@ -131,6 +131,9 @@ connect = (self, table, fn) ->
   return
 
 objectId = (value) ->
+  if not value
+    return new mongodb.ObjectID()
+
   if utils.is.str(value)
     value = new mongodb.ObjectID value
 
