@@ -1,8 +1,5 @@
 utils = require './utils'
-
-mongodb = require 'mongodb'
-client  = mongodb.MongoClient
-
+client = require('mongodb').MongoClient
 Collection = require './collection'
 
 class Easymongo
