@@ -80,6 +80,10 @@ Arguments:
 * removeById (oid[, callback])
 * count ([params][, callback])
 
+## Flow control
+
+You can use `easymongo` with [co](https://github.com/visionmedia/co) for generator based flow-control. For these purposes use the [co-easymongo](https://github.com/yamb/co-easymongo).
+
 ## Author
 
 * [Alexey Simonenko](mailto:alexey@simonenko.su), [simonenko.su](http://simonenko.su)
