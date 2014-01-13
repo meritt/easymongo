@@ -206,7 +206,8 @@ describe('Easymongo', function() {
   it('should return collection object for native operations', function(done) {
     mongo = new emongo({dbname: 'test'});
 
-    mongo.open(collection, function(res) {
+    mongo.open(collection, function(err, res) {
+      should(err).equal(null);
       should(res).be.ok;
       res.should.be.instanceof(Object);
       res.should.have.property('constructor');

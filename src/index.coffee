@@ -28,13 +28,15 @@ class Client
       fn = ->
 
     if @db and @db.state and @db.state is 'connected'
-      fn @db.collection name
+      fn null, @db.collection name
     else
       MongoClient.connect @url, @options, (error, db) =>
-        throw error if error
+        if error
+          fn error, null
+          return
 
         @db = db
-        fn db.collection name
+        fn null, db.collection name
 
         return
     return
