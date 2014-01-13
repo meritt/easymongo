@@ -1,8 +1,8 @@
-# Easiest mongodb
+# easymongo
 
 [![NPM version](https://badge.fury.io/js/easymongo.png)](http://badge.fury.io/js/easymongo) [![Build Status](https://travis-ci.org/meritt/easymongo.png?branch=master)](https://travis-ci.org/meritt/easymongo) [![Coverage Status](https://coveralls.io/repos/meritt/easymongo/badge.png)](https://coveralls.io/r/meritt/easymongo) [![Dependency Status](https://david-dm.org/meritt/easymongo.png)](https://david-dm.org/meritt/easymongo) [![devDependency Status](https://david-dm.org/meritt/easymongo/dev-status.png)](https://david-dm.org/meritt/easymongo#info=devDependencies)
 
-This is a small extension for quick work with [MongoDB native driver](https://github.com/mongodb/node-mongodb-native).
+This is a small tweaks for the [native MongoDB driver](https://github.com/mongodb/node-mongodb-native).
 
 ## Installation
 
@@ -13,42 +13,48 @@ $ npm install easymongo
 ## Examples
 
 ```js
-var Easymongo = require('easymongo');
-var mongo = new Easymongo({dbname: 'test'});
+var options = {
+  dbname: 'test'
+};
+
+var mongo = new require('easymongo')(options);
+var users = mongo.collection('users');
 
 var data = {name: 'Alexey', surname: 'Simonenko', url: 'http://simonenko.su'};
-mongo.save('users', data, function(error, results) {
+users.save(data, function(error, results) {
   // Returns a new document (array).
   console.log(results);
 });
 
-mongo.find('users', {name: 'Alexey'}, {limit: 1}, function(error, results) {
+users.find({name: 'Alexey'}, {limit: 1}, function(error, results) {
   // Always return array of documents.
   console.log(results);
 });
 
-mongo.findById('users', '4e4e1638c85e808431000003', function(error, results) {
+users.findById('4e4e1638c85e808431000003', function(error, results) {
   // Returns a document (object). If error occur then returns false.
   console.log(results);
 });
 
-mongo.count('users', {name: 'Alexey'}, function(error, results) {
+users.count({name: 'Alexey'}, function(error, results) {
   // Amount (int). If error occur then returns zero.
   console.log(results);
 });
 
-mongo.remove('users', {name: 'Alexey'}, function(error, results) {
+users.remove({name: 'Alexey'}, function(error, results) {
   // Returns a result of operation (boolean). If error occur then returns false.
   console.log(results);
 });
 
-mongo.removeById('users', '4e4e1638c85e808431000003', function(error, results) {
+users.removeById('4e4e1638c85e808431000003', function(error, results) {
   // Returns a result of operation (boolean). If error occur then returns false.
   console.log(results);
 });
 ```
 
 ## API
+
+### Client class
 
 #### Constructor
 
@@ -59,14 +65,20 @@ Arguments:
 
 #### Methods
 
-* find (collection[, params][, options][, callback])
-* findById (collection, id[, callback])
-* save (collection, params[, callback])
-* remove (collection[, params][, callback])
-* removeById (collection, id[, callback])
-* count (collection[, params][, callback])
-* collection (collection, callback)
-* close ()
+* collection (name) — returns a new instance of the easymongo [Collection class](#collection-class)
+* open (name[, callback]) — returns the [MongoDB Collection](http://mongodb.github.io/node-mongodb-native/api-generated/collection.html)
+* close — close the db connection
+
+### Collection class
+
+#### Methods
+
+* find ([params][, options][, callback])
+* findById (oid[, callback])
+* save (params[, callback])
+* remove ([params][, callback])
+* removeById (oid[, callback])
+* count ([params][, callback])
 
 ## Author
 
