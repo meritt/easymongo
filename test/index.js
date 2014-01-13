@@ -1,15 +1,22 @@
 var should = require('should');
 
-var collection = 'test';
-var oid = '4e4e1638c85e808431000003';
-
 var emongo = require('..');
 var mongo = new emongo({dbname: 'test'});
 
+var collection = 'users';
+var users = mongo.collection(collection);
+var oid = '4e4e1638c85e808431000003';
+
+function throwNextTick(error) {
+  process.nextTick(function() {
+    throw error;
+  });
+}
+
 describe('Easymongo', function() {
   it('should return false if nothing to remove', function(done) {
-    mongo.remove(collection, function() {
-      mongo.remove(collection, function(err, res) {
+    users.remove(function() {
+      users.remove(function(err, res) {
         should(err).equal(null);
         res.should.be.false;
 
@@ -19,7 +26,7 @@ describe('Easymongo', function() {
   });
 
   it('should return false if nothing to remove (removeById)', function(done) {
-    mongo.removeById(collection, oid, function(err, res) {
+    users.removeById(oid, function(err, res) {
       should(err).equal(null);
       res.should.be.false;
 
@@ -28,7 +35,7 @@ describe('Easymongo', function() {
   });
 
   it('should return empty array if nothing found', function(done) {
-    mongo.find(collection, {name: 'Alexey'}, function(err, res) {
+    users.find({name: 'Alexey'}, function(err, res) {
       should(err).equal(null);
       res.should.be.instanceof(Array);
       res.should.have.length(0);
@@ -38,7 +45,7 @@ describe('Easymongo', function() {
   });
 
   it('should return empty array if nothing found (findById)', function(done) {
-    mongo.findById(collection, oid, function(err, res) {
+    users.findById(oid, function(err, res) {
       should(err).equal(null);
       res.should.be.false;
 
@@ -47,7 +54,7 @@ describe('Easymongo', function() {
   });
 
   it('should return zero if collection is empty', function(done) {
-    mongo.count(collection, function(err, res) {
+    users.count(function(err, res) {
       should(err).equal(null);
       res.should.be.eql(0);
 
@@ -56,7 +63,7 @@ describe('Easymongo', function() {
   });
 
   it('should save new documents and count it', function(done) {
-    mongo.save(collection, {name: 'Alexey', url: 'simonenko.su'}, function(err, a) {
+    users.save({name: 'Alexey', url: 'simonenko.su'}, function(err, a) {
       should(err).equal(null);
       should(a).be.ok;
 
@@ -64,7 +71,7 @@ describe('Easymongo', function() {
       a.should.have.property('_id');
       a.should.have.property('url', 'simonenko.su');
 
-      mongo.save(collection, {name: 'Alexey', url: 'chocolatejs.ru'}, function(err, b) {
+      users.save({name: 'Alexey', url: 'chocolatejs.ru'}, function(err, b) {
         should(err).equal(null);
         should(b).be.ok;
 
@@ -72,7 +79,7 @@ describe('Easymongo', function() {
         b.should.have.property('_id');
         b.should.have.property('url', 'chocolatejs.ru');
 
-        mongo.save(collection, {name: 'Alena', url: 'simonenko.su'}, function(err, c) {
+        users.save({name: 'Alena', url: 'simonenko.su'}, function(err, c) {
           should(err).equal(null);
           should(c).be.ok;
 
@@ -80,7 +87,7 @@ describe('Easymongo', function() {
           c.should.have.property('_id');
           c.should.have.property('url', 'simonenko.su');
 
-          mongo.count(collection, function(err, count) {
+          users.count(function(err, count) {
             should(err).equal(null);
             should(count).be.ok;
 
@@ -94,7 +101,7 @@ describe('Easymongo', function() {
   });
 
   it('should find and remove documents', function(done) {
-    mongo.find(collection, {url: 'simonenko.su'}, function(err, res) {
+    users.find({url: 'simonenko.su'}, function(err, res) {
       should(err).equal(null);
       should(res).be.ok;
 
@@ -105,11 +112,11 @@ describe('Easymongo', function() {
       var aid = "" + res[0]._id;
       var bid = "" + res[1]._id;
 
-      mongo.removeById(collection, bid, function(err, res) {
+      users.removeById(bid, function(err, res) {
         should(err).equal(null);
         res.should.be.true;
 
-        mongo.findById(collection, aid, function(err, res) {
+        users.findById(aid, function(err, res) {
           should(err).equal(null);
           should(res).be.ok;
 
@@ -123,7 +130,7 @@ describe('Easymongo', function() {
   });
 
   it('should update document if it already saved', function(done) {
-    mongo.find(collection, null, {limit: 1}, function(err, res) {
+    users.find(null, {limit: 1}, function(err, res) {
       should(err).equal(null);
       should(res).be.ok;
 
@@ -132,7 +139,7 @@ describe('Easymongo', function() {
 
       res[0].name = 'Eva';
 
-      mongo.save(collection, res[0], function(err, doc) {
+      users.save(res[0], function(err, doc) {
         should(err).equal(null);
         should(doc).be.ok;
 
@@ -140,7 +147,7 @@ describe('Easymongo', function() {
         doc.should.have.property('_id');
         doc.name.should.be.eql('Eva');
 
-        mongo.count(collection, function(err, count) {
+        users.count(function(err, count) {
           should(err).equal(null);
           count.should.be.eql(2);
 
@@ -151,7 +158,7 @@ describe('Easymongo', function() {
   });
 
   it('should works with id property', function(done) {
-    mongo.find(collection, {id: {$nin: [oid]}}, function(err, res) {
+    users.find({id: {$nin: [oid]}}, function(err, res) {
       should(err).equal(null);
       should(res).be.ok;
 
@@ -162,56 +169,28 @@ describe('Easymongo', function() {
     });
   });
 
-  it('should throw error if ObjectID not valid (findById)', function() {
-    var err;
-
-    try {
-      mongo.findById(collection, 'test object id');
-    } catch (_error) {
-      err = _error;
-    }
-
-    should(err).not.equal(null);
-    should(err).be.instanceof(Error);
+  it('should throw error if ObjectID not valid', function() {
+    (function() {
+      users.oid('test object id');
+    }).should.throw();
   });
 
-  it('should throw error if ObjectID not valid (removeById)', function() {
-    var err;
+  it('should throw error if ObjectID not valid in params', function() {
+    (function() {
+      users.prepare({'_id': 'test object id'});
+    }).should.throw();
 
-    try {
-      mongo.removeById(collection, 'test object id');
-    } catch (_error) {
-      err = _error;
-    }
+    (function() {
+      users.prepare({'id': 'test object id'});
+    }).should.throw();
 
-    should(err).not.equal(null);
-    should(err).be.instanceof(Error);
-  });
+    (function() {
+      users.prepare({'_id': {$in: [oid, 'test object id', oid]}});
+    }).should.throw();
 
-  it('should throw error if ObjectID not valid (find)', function() {
-    var err;
-
-    try {
-      mongo.find(collection, {'_id': 'test object id'});
-    } catch (_error) {
-      err = _error;
-    }
-
-    should(err).not.equal(null);
-    should(err).be.instanceof(Error);
-  });
-
-  it('should throw error if ObjectID not valid (in advanced query)', function() {
-    var err;
-
-    try {
-      mongo.find(collection, {'_id': {$in: [oid, 'test object id', oid]}});
-    } catch (_error) {
-      err = _error;
-    }
-
-    should(err).not.equal(null);
-    should(err).be.instanceof(Error);
+    (function() {
+      users.prepare({'id': {$nin: [oid, 'test object id', oid]}});
+    }).should.throw();
   });
 
   it('should have db property and can close connection', function() {
@@ -233,7 +212,7 @@ describe('Easymongo', function() {
   it('should return collection object for native operations', function(done) {
     mongo = new emongo({dbname: 'test'});
 
-    mongo.collection(collection, function(res) {
+    mongo.connect(collection, function(res) {
       should(res).be.ok;
       res.should.be.instanceof(Object);
       res.should.have.property('constructor');
@@ -268,7 +247,7 @@ describe('Easymongo', function() {
       sort: {test: -1}
     };
 
-    mongo.find(collection, query, options, function(err, res) {
+    users.find(query, options, function(err, res) {
       should(err).equal(null);
       should(res).be.ok;
 
