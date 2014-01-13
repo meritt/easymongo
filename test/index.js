@@ -1,7 +1,7 @@
 var should = require('should');
 
-var emongo = require('..');
-var mongo = new emongo({dbname: 'test'});
+var client = require('..');
+var mongo = new client({dbname: 'test'});
 
 var collection = 'users';
 var users = mongo.collection(collection);
@@ -204,7 +204,7 @@ describe('Easymongo', function() {
   });
 
   it('should return collection object for native operations', function(done) {
-    mongo = new emongo({dbname: 'test'});
+    mongo = new client({dbname: 'test'});
 
     mongo.open(collection, function(err, res) {
       should(err).equal(null);
