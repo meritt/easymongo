@@ -14,7 +14,7 @@ class Collection
   find: (params, options, fn) ->
     {params, options, fn} = utils.normalize params, options, fn
 
-    @db.connect @name, (col) ->
+    @db.open @name, (col) ->
       cursor = col.find prepare params
 
       if options
@@ -43,7 +43,7 @@ class Collection
   save: (params, fn) ->
     {params, fn} = utils.normalize params, fn
 
-    @db.connect @name, (col) ->
+    @db.open @name, (col) ->
       params = prepare params
 
       col.save params, (error, results) ->
@@ -58,7 +58,7 @@ class Collection
   remove: (params, fn) ->
     {params, fn} = utils.normalize params, fn
 
-    @db.connect @name, (col) ->
+    @db.open @name, (col) ->
       params = prepare params
 
       col.remove params, (error, results) ->
@@ -76,7 +76,7 @@ class Collection
   count: (params, fn) ->
     {params, fn} = utils.normalize params, fn
 
-    @db.connect @name, (col) ->
+    @db.open @name, (col) ->
       params = prepare params
 
       col.count params, (error, results) ->

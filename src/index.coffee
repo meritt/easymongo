@@ -1,8 +1,8 @@
 utils = require './utils'
-client = require('mongodb').MongoClient
+{MongoClient} = require 'mongodb'
 Collection = require './collection'
 
-class Easymongo
+class Client
   url: null
 
   constructor: (server, @options = {}) ->
@@ -20,14 +20,17 @@ class Easymongo
 
       @url = "mongodb://#{server.host}:#{server.port}/#{server.dbname}"
 
-  connect: (name, fn) ->
+  collection: (name) ->
+    return new Collection @, name
+
+  open: (name, fn) ->
     unless utils.is.fun(fn)
       fn = ->
 
     if @db and @db.state and @db.state is 'connected'
       fn @db.collection name
     else
-      client.connect @url, @options, (error, db) =>
+      MongoClient.connect @url, @options, (error, db) =>
         throw error if error
 
         @db = db
@@ -35,9 +38,6 @@ class Easymongo
 
         return
     return
-
-  collection: (name) ->
-    return new Collection @, name
 
   close: ->
     return false if not @db
@@ -47,4 +47,4 @@ class Easymongo
 
     return true
 
-module.exports = Easymongo
+module.exports = Client
