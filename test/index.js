@@ -7,12 +7,6 @@ var collection = 'users';
 var users = mongo.collection(collection);
 var oid = '4e4e1638c85e808431000003';
 
-function throwNextTick(error) {
-  process.nextTick(function() {
-    throw error;
-  });
-}
-
 describe('Easymongo', function() {
   it('should return false if nothing to remove', function(done) {
     users.remove(function() {
@@ -212,7 +206,7 @@ describe('Easymongo', function() {
   it('should return collection object for native operations', function(done) {
     mongo = new emongo({dbname: 'test'});
 
-    mongo.connect(collection, function(res) {
+    mongo.open(collection, function(res) {
       should(res).be.ok;
       res.should.be.instanceof(Object);
       res.should.have.property('constructor');
