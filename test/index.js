@@ -68,25 +68,25 @@ describe('Easymongo', function() {
       users.save({name: 'Alexey', url: 'chocolatejs.ru'}, function(err, b) {
         should(err).equal(null);
         should(b).be.ok;
-
+      
         b.should.be.instanceof(Object);
         b.should.have.property('_id');
         b.should.have.property('url', 'chocolatejs.ru');
-
+      
         users.save({name: 'Alena', url: 'simonenko.su'}, function(err, c) {
           should(err).equal(null);
           should(c).be.ok;
-
+        
           c.should.be.instanceof(Object);
           c.should.have.property('_id');
           c.should.have.property('url', 'simonenko.su');
-
+        
           users.count(function(err, count) {
             should(err).equal(null);
             should(count).be.ok;
-
+          
             count.should.be.eql(3);
-
+          
             done();
           });
         });
@@ -188,17 +188,19 @@ describe('Easymongo', function() {
   });
 
   it('should have db property and can close connection', function() {
+    var res;
+
     should(mongo.db).be.ok;
     mongo.db.should.be.instanceof(Object);
     mongo.db.should.have.property('constructor');
     mongo.db.constructor.should.have.property('name');
     mongo.db.constructor.name.should.be.eql('Db');
 
-    var res = mongo.close();
+    res = mongo.close();
     res.should.be.true;
     should(mongo.db).equal(null);
 
-    var res = mongo.close();
+    res = mongo.close();
     res.should.be.false;
     should(mongo.db).equal(null);
   });
@@ -231,7 +233,7 @@ describe('Easymongo', function() {
 
         done();
       });
-    })
+    });
   });
 
   it('should find documents with advanced options', function(done) {
@@ -253,6 +255,52 @@ describe('Easymongo', function() {
       res[1].test.should.eql('c');
 
       done();
+    });
+  });
+
+  it('should modify documents with update operators', function(done) {
+    users.find(null, {limit: 3}, function(err, res) {
+      should(err).equal(null);
+      res.should.be.instanceof(Array);
+      res.should.have.length(3);
+
+      var a = '' + res[0]._id;
+      var b = '' + res[1]._id;
+      var c = '' + res[2]._id;
+
+      var data = {
+        name: 'update fn',
+        related: [a, b, c]
+      };
+
+      users.save(data, function(error, result) {
+        should(error).equal(null);
+        should(result).be.ok;
+
+        result.should.be.instanceof(Object);
+        result.should.have.property('_id');
+        result.should.have.property('related');
+        result.related.should.have.length(3);
+        result.related.should.containEql(b);
+
+        users.update({name: 'update fn'}, {$pull: {related: b}}, function(error, result) {
+          should(error).equal(null);
+          result.should.be.true;
+
+          users.find({name: 'update fn'}, function(error, result) {
+            should(error).equal(null);
+            result.should.be.instanceof(Array);
+            result.should.have.length(1);
+
+            result[0].should.have.property('related');
+            result[0].related.should.have.length(2);
+            result[0].related.should.containEql(a);
+            result[0].related.should.containEql(c);
+
+            done();
+          });
+        });
+      });
     });
   });
 });

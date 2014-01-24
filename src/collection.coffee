@@ -63,6 +63,28 @@ class Collection
       return
     return
 
+  update: (params, data, fn) ->
+    {params, options, fn} = utils.normalize params, data, fn
+
+    @db.open @name, (err, col) ->
+      if err
+        fn err, false
+        return
+
+      params = prepare params
+      data = options
+      options =
+        multi: true
+        upsert: false
+
+      col.update params, data, options, (error) ->
+        result = not error
+        fn error, result
+
+        return
+      return
+    return
+
   remove: (params, fn) ->
     {params, fn} = utils.normalize params, fn
 

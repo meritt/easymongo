@@ -75,7 +75,8 @@ Arguments:
 
 * find ([params][, options][, callback])
 * findById (oid[, callback])
-* save (params[, callback])
+* save (data[, callback])
+* update (params, data[, callback])
 * remove ([params][, callback])
 * removeById (oid[, callback])
 * count ([params][, callback])
