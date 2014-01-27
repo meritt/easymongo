@@ -20,7 +20,7 @@
         "coffee-script": "~1.6"
       , "mocha": "~1.17"
       , "should": "~3.1"
-      , "coveralls": "~2.6"
+      , "coveralls": "~2.7"
       , "istanbul": "~0.2"
     }
   , "scripts": {
