@@ -13,11 +13,9 @@ $ npm install easymongo
 ## Examples
 
 ```js
-var options = {
-  dbname: 'test'
-};
+var easymongo = require('easymongo');
 
-var mongo = new require('easymongo')(options);
+var mongo = new easymongo({dbname: 'test'});
 var users = mongo.collection('users');
 
 var data = {name: 'Alexey', surname: 'Simonenko', url: 'http://simonenko.su'};
