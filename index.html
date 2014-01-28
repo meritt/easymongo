@@ -43,11 +43,9 @@
 <h2>
 <a name="examples" class="anchor" href="#examples"><span class="octicon octicon-link"></span></a>Examples</h2>
 
-<div class="highlight highlight-js"><pre><span class="kd">var</span> <span class="nx">options</span> <span class="o">=</span> <span class="p">{</span>
-  <span class="nx">dbname</span><span class="o">:</span> <span class="s1">'test'</span>
-<span class="p">};</span>
+<div class="highlight highlight-js"><pre><span class="kd">var</span> <span class="nx">easymongo</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'easymongo'</span><span class="p">);</span>
 
-<span class="kd">var</span> <span class="nx">mongo</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'easymongo'</span><span class="p">)(</span><span class="nx">options</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">mongo</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">easymongo</span><span class="p">({</span><span class="nx">dbname</span><span class="o">:</span> <span class="s1">'test'</span><span class="p">});</span>
 <span class="kd">var</span> <span class="nx">users</span> <span class="o">=</span> <span class="nx">mongo</span><span class="p">.</span><span class="nx">collection</span><span class="p">(</span><span class="s1">'users'</span><span class="p">);</span>
 
 <span class="kd">var</span> <span class="nx">data</span> <span class="o">=</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">,</span> <span class="nx">surname</span><span class="o">:</span> <span class="s1">'Simonenko'</span><span class="p">,</span> <span class="nx">url</span><span class="o">:</span> <span class="s1">'http://simonenko.su'</span><span class="p">};</span>
@@ -122,7 +120,7 @@
 </ul><h2>
 <a name="flow-control" class="anchor" href="#flow-control"><span class="octicon octicon-link"></span></a>Flow control</h2>
 
-<p>You can use <code>easymongo</code> with <a href="https://github.com/visionmedia/co">co</a> for generator based flow-control. For these purposes use the <a href="https://github.com/yamb/co-easymongo">co-easymongo</a>.</p>
+<p>You can use <code>easymongo</code> with <a href="https://github.com/visionmedia/co">co</a> for generator based flow-control. For these purposes use the <a href="https://github.com/meritt/co-easymongo">co-easymongo</a>.</p>
 
 <h2>
 <a name="author" class="anchor" href="#author"><span class="octicon octicon-link"></span></a>Author</h2>
