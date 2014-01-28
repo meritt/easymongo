@@ -83,7 +83,7 @@ Arguments:
 
 ## Flow control
 
-You can use `easymongo` with [co](https://github.com/visionmedia/co) for generator based flow-control. For these purposes use the [co-easymongo](https://github.com/yamb/co-easymongo).
+You can use `easymongo` with [co](https://github.com/visionmedia/co) for generator based flow-control. For these purposes use the [co-easymongo](https://github.com/meritt/co-easymongo).
 
 ## Author
 
