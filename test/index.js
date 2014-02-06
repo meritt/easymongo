@@ -68,25 +68,25 @@ describe('Easymongo', function() {
       users.save({name: 'Alexey', url: 'chocolatejs.ru'}, function(err, b) {
         should(err).equal(null);
         should(b).be.ok;
-      
+
         b.should.be.instanceof(Object);
         b.should.have.property('_id');
         b.should.have.property('url', 'chocolatejs.ru');
-      
+
         users.save({name: 'Alena', url: 'simonenko.su'}, function(err, c) {
           should(err).equal(null);
           should(c).be.ok;
-        
+
           c.should.be.instanceof(Object);
           c.should.have.property('_id');
           c.should.have.property('url', 'simonenko.su');
-        
+
           users.count(function(err, count) {
             should(err).equal(null);
             should(count).be.ok;
-          
+
             count.should.be.eql(3);
-          
+
             done();
           });
         });
@@ -218,12 +218,12 @@ describe('Easymongo', function() {
 
       res.should.have.property('insert');
       res.insert([
-        {test: 'a'},
-        {test: 'b'},
-        {test: 'c'},
-        {test: 'd'},
-        {test: 'e'},
-        {test: 'f'}
+        {test: 'a', name: '1', created: '12:34'},
+        {test: 'b', name: '2', created: '12:34'},
+        {test: 'c', name: '3', created: '12:34'},
+        {test: 'd', name: '4', created: '12:34'},
+        {test: 'e', name: '5', created: '12:34'},
+        {test: 'f', name: '6', created: '12:34'}
       ], function(err, docs) {
         should(err).equal(null);
         should(docs).be.ok;
@@ -237,11 +237,18 @@ describe('Easymongo', function() {
   });
 
   it('should find documents with advanced options', function(done) {
-    var query = {test: {$exists: true}};
+    var query = {
+      test: {
+        $exists: true
+      }
+    };
+
     var options = {
       limit: 2,
       skip: 2,
-      sort: {test: -1}
+      sort: {
+        test: -1
+      }
     };
 
     users.find(query, options, function(err, res) {
@@ -255,6 +262,59 @@ describe('Easymongo', function() {
       res[1].test.should.eql('c');
 
       done();
+    });
+  });
+
+  it('should find documents and return limited fields', function(done) {
+    var query = {
+      test: {
+        $exists: true
+      }
+    };
+
+    var options = {
+      fields: [false, {'name': 1}, 'created', 100]
+    };
+
+    users.find(query, options, function(err, res) {
+      should(err).equal(null);
+      should(res).be.ok;
+
+      res.should.be.instanceof(Array);
+      res.should.have.length(6);
+
+      for (var i=0; i<res.length; i++) {
+        res[i].should.have.property('_id');
+        res[i].should.have.property('created');
+        res[i].should.not.have.property('test');
+        res[i].should.not.have.property('name');
+      }
+
+      done();
+    });
+  });
+
+  it('should limit fields for findById method', function(done) {
+    var query = {
+      test: {
+        $exists: true
+      }
+    };
+
+    users.find(query, function(err, res) {
+      should(err).equal(null);
+      should(res).be.ok;
+
+      var bid = "" + res[0]._id;
+
+      users.findById(bid, [false, {'name': 1}, 'created', 100], function(err, res) {
+        res.should.have.property('_id');
+        res.should.have.property('created');
+        res.should.not.have.property('test');
+        res.should.not.have.property('name');
+
+        done();
+      });
     });
   });
 

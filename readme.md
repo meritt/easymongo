@@ -58,26 +58,33 @@ users.removeById('4e4e1638c85e808431000003', function(error, results) {
 
 Arguments:
 
-  * server (string || object) — [connection url](http://docs.mongodb.org/manual/reference/connection-string/) to MongoDB or object with host, port and dbname
-  * options (object) — [optional options](http://mongodb.github.io/node-mongodb-native/api-generated/mongoclient.html#connect) for insert command
+  * `server` (string || object) — [connection url](http://docs.mongodb.org/manual/reference/connection-string/) to MongoDB or object with host, port and dbname
+  * `options` (object) — [optional options](http://mongodb.github.io/node-mongodb-native/api-generated/mongoclient.html#connect) for insert command
 
 #### Methods
 
-* collection (name) — returns a new instance of the easymongo [Collection class](#collection-class)
-* open (name[, callback]) — returns the [MongoDB Collection](http://mongodb.github.io/node-mongodb-native/api-generated/collection.html)
-* close — close the db connection
+* `collection(name)` — returns a new instance of the easymongo [Collection class](#collection-class)
+* `open(name[, callback])` — returns the [MongoDB Collection](http://mongodb.github.io/node-mongodb-native/api-generated/collection.html)
+* `close()` — close the db connection
 
 ### Collection class
 
 #### Methods
 
-* find ([params][, options][, callback])
-* findById (oid[, callback])
-* save (data[, callback])
-* update (params, data[, callback])
-* remove ([params][, callback])
-* removeById (oid[, callback])
-* count ([params][, callback])
+* `find([params][, options][, callback])`
+* `findById(oid[, fields][, callback])`
+* `save(data[, callback])`
+* `update(params, data[, callback])`
+* `remove([params][, callback])`
+* `removeById(oid[, callback])`
+* `count([params][, callback])`
+
+Possible find `options`:
+
+* `limit` — to specify the maximum number of documents ([more info](http://docs.mongodb.org/manual/reference/method/cursor.limit/))
+* `skip` — to control where MongoDB begins returning results ([more info](http://docs.mongodb.org/manual/reference/method/cursor.skip/))
+* `sort` — controls the order that the query returns matching documents ([more info](http://docs.mongodb.org/manual/reference/method/cursor.sort/))
+* `fields` — specify fields array to limit fields in returned documents, e.g. `["name", "url"]`
 
 ## Flow control
 

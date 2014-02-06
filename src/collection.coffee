@@ -19,7 +19,13 @@ class Collection
         fn err, []
         return
 
-      cursor = col.find prepare params
+      fields = {}
+      if options and utils.is.arr options.fields
+        for field in options.fields
+          continue unless utils.is.str field
+          fields[field] = 1
+
+      cursor = col.find prepare(params), fields
 
       if options
         cursor.limit options.limit if options.limit
@@ -34,10 +40,18 @@ class Collection
       return
     return
 
-  findById: (id, fn) ->
-    {fn} = utils.normalize fn
+  findById: (id, fields, fn) ->
+    if utils.is.fun fields
+      fn = fields
+      fields = null
 
-    @find {_id: id}, {limit: 1}, (error, results) ->
+    if not utils.is.fun fn
+      fn = ->
+
+    options = limit: 1
+    options.fields = fields if utils.is.arr fields
+
+    @find {_id: id}, options, (error, results) ->
       results = results[0] ? false
       fn error, results
 
@@ -129,7 +143,7 @@ oid = (value) ->
   unless value
     return new mongodb.ObjectID()
 
-  if utils.is.str(value)
+  if utils.is.str value
     value = new mongodb.ObjectID value
 
   return value
@@ -142,10 +156,10 @@ prepare = (params) ->
     params._id = params.id
     delete params.id
 
-  if utils.is.obj(params._id)
+  if utils.is.obj params._id
     operator = false
-    operator = '$in'  if utils.is.arr(params._id.$in)
-    operator = '$nin' if utils.is.arr(params._id.$nin)
+    operator = '$in'  if utils.is.arr params._id.$in
+    operator = '$nin' if utils.is.arr params._id.$nin
 
     if operator
       params._id[operator] = params._id[operator].map (value) ->
