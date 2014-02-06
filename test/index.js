@@ -318,6 +318,38 @@ describe('Easymongo', function() {
     });
   });
 
+  it('should find one document', function(done) {
+    var query = {
+      test: {
+        $exists: true
+      }
+    };
+
+    var options = {
+      fields: ['test', 'name'],
+      sort: {
+        name: -1
+      }
+    };
+
+    users.findOne({slug: {$exists: true}}, function(err, res) {
+      should(err).equal(null);
+      should(res).be.false;
+
+      users.findOne(query, options, function(err, res) {
+        should(err).equal(null);
+        should(res).be.ok;
+
+        res.should.be.instanceof(Object);
+        res.test.should.eql('f');
+        res.name.should.eql('6');
+        res.should.not.have.property('created');
+
+        done();
+      });
+    });
+  });
+
   it('should modify documents with update operators', function(done) {
     users.find(null, {limit: 3}, function(err, res) {
       should(err).equal(null);

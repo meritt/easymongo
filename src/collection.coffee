@@ -40,6 +40,19 @@ class Collection
       return
     return
 
+  findOne: (params, options, fn) ->
+    {params, options, fn} = utils.normalize params, options, fn
+
+    options = {} unless options
+    options.limit = 1
+
+    @find params, options, (error, results) ->
+      results = results[0] ? false
+      fn error, results
+
+      return
+    return
+
   findById: (id, fields, fn) ->
     if utils.is.fun fields
       fn = fields
@@ -48,14 +61,10 @@ class Collection
     if not utils.is.fun fn
       fn = ->
 
-    options = limit: 1
-    options.fields = fields if utils.is.arr fields
+    params = _id: id
+    options = if utils.is.arr fields then {fields} else {}
 
-    @find {_id: id}, options, (error, results) ->
-      results = results[0] ? false
-      fn error, results
-
-      return
+    @findOne params, options, fn
     return
 
   save: (params, fn) ->

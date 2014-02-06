@@ -24,7 +24,7 @@ users.save(data, function(error, results) {
   console.log(results);
 });
 
-users.find({name: 'Alexey'}, {limit: 1}, function(error, results) {
+users.find({name: 'Alexey'}, {limit: 2}, function(error, results) {
   // Always return array of documents.
   console.log(results);
 });
@@ -72,6 +72,7 @@ Arguments:
 #### Methods
 
 * `find([params][, options][, callback])`
+* `findOne([params][, options][, callback])`
 * `findById(oid[, fields][, callback])`
 * `save(data[, callback])`
 * `update(params, data[, callback])`
