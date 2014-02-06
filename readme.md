@@ -83,6 +83,16 @@ Arguments:
 
 You can use `easymongo` with [co](https://github.com/visionmedia/co) for generator based flow-control. For these purposes use the [co-easymongo](https://github.com/meritt/co-easymongo).
 
+## Contributing
+
+**DO NOT directly modify the `lib` files.** These files are automatically built from CoffeeScript sources located under the `src` directory.
+
+To do build run:
+
+```bash
+$ npm run build
+```
+
 ## Author
 
 * [Alexey Simonenko](mailto:alexey@simonenko.su), [simonenko.su](http://simonenko.su)
