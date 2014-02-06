@@ -163,6 +163,12 @@ describe('Easymongo', function() {
     });
   });
 
+  it('should create new ObjectID', function() {
+    var bid = users.oid();
+    bid.should.be.instanceof(Object);
+    bid.constructor.name.should.eql('ObjectID');
+  });
+
   it('should throw error if ObjectID not valid', function() {
     (function() {
       users.oid('test object id');
