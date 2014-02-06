@@ -54,7 +54,7 @@
   <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span>
 <span class="p">});</span>
 
-<span class="nx">users</span><span class="p">.</span><span class="nx">find</span><span class="p">({</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">},</span> <span class="p">{</span><span class="nx">limit</span><span class="o">:</span> <span class="mi">1</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+<span class="nx">users</span><span class="p">.</span><span class="nx">find</span><span class="p">({</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">},</span> <span class="p">{</span><span class="nx">limit</span><span class="o">:</span> <span class="mi">2</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
   <span class="c1">// Always return array of documents.</span>
   <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span>
 <span class="p">});</span>
@@ -92,17 +92,22 @@
 <p>Arguments:</p>
 
 <ul>
-<li>server (string || object) — <a href="http://docs.mongodb.org/manual/reference/connection-string/">connection url</a> to MongoDB or object with host, port and dbname</li>
-<li>options (object) — <a href="http://mongodb.github.io/node-mongodb-native/api-generated/mongoclient.html#connect">optional options</a> for insert command</li>
+<li>
+<code>server</code> (string || object) — <a href="http://docs.mongodb.org/manual/reference/connection-string/">connection url</a> to MongoDB or object with host, port and dbname</li>
+<li>
+<code>options</code> (object) — <a href="http://mongodb.github.io/node-mongodb-native/api-generated/mongoclient.html#connect">optional options</a> for insert command</li>
 </ul><h4>
 <a name="methods" class="anchor" href="#methods"><span class="octicon octicon-link"></span></a>Methods</h4>
 
 <ul>
-<li>collection (name) — returns a new instance of the easymongo <a href="#collection-class">Collection class</a>
+<li>
+<code>collection(name)</code> — returns a new instance of the easymongo <a href="#collection-class">Collection class</a>
 </li>
-<li>open (name[, callback]) — returns the <a href="http://mongodb.github.io/node-mongodb-native/api-generated/collection.html">MongoDB Collection</a>
+<li>
+<code>open(name[, callback])</code> — returns the <a href="http://mongodb.github.io/node-mongodb-native/api-generated/collection.html">MongoDB Collection</a>
 </li>
-<li>close — close the db connection</li>
+<li>
+<code>close()</code> — close the db connection</li>
 </ul><h3>
 <a name="collection-class" class="anchor" href="#collection-class"><span class="octicon octicon-link"></span></a>Collection class</h3>
 
@@ -110,17 +115,40 @@
 <a name="methods-1" class="anchor" href="#methods-1"><span class="octicon octicon-link"></span></a>Methods</h4>
 
 <ul>
-<li>find ([params][, options][, callback])</li>
-<li>findById (oid[, callback])</li>
-<li>save (data[, callback])</li>
-<li>update (params, data[, callback])</li>
-<li>remove ([params][, callback])</li>
-<li>removeById (oid[, callback])</li>
-<li>count ([params][, callback])</li>
+<li><code>find([params][, options][, callback])</code></li>
+<li><code>findOne([params][, options][, callback])</code></li>
+<li><code>findById(oid[, fields][, callback])</code></li>
+<li><code>save(data[, callback])</code></li>
+<li><code>update(params, data[, callback])</code></li>
+<li><code>remove([params][, callback])</code></li>
+<li><code>removeById(oid[, callback])</code></li>
+<li><code>count([params][, callback])</code></li>
+</ul><p>Possible find <code>options</code>:</p>
+
+<ul>
+<li>
+<code>limit</code> — to specify the maximum number of documents (<a href="http://docs.mongodb.org/manual/reference/method/cursor.limit/">more info</a>)</li>
+<li>
+<code>skip</code> — to control where MongoDB begins returning results (<a href="http://docs.mongodb.org/manual/reference/method/cursor.skip/">more info</a>)</li>
+<li>
+<code>sort</code> — controls the order that the query returns matching documents (<a href="http://docs.mongodb.org/manual/reference/method/cursor.sort/">more info</a>)</li>
+<li>
+<code>fields</code> — specify fields array to limit fields in returned documents, e.g. <code>["name", "url"]</code>
+</li>
 </ul><h2>
 <a name="flow-control" class="anchor" href="#flow-control"><span class="octicon octicon-link"></span></a>Flow control</h2>
 
 <p>You can use <code>easymongo</code> with <a href="https://github.com/visionmedia/co">co</a> for generator based flow-control. For these purposes use the <a href="https://github.com/meritt/co-easymongo">co-easymongo</a>.</p>
+
+<h2>
+<a name="contributing" class="anchor" href="#contributing"><span class="octicon octicon-link"></span></a>Contributing</h2>
+
+<p><strong>DO NOT directly modify the <code>lib</code> files.</strong> These files are automatically built from CoffeeScript sources located under the <code>src</code> directory.</p>
+
+<p>To do build run:</p>
+
+<div class="highlight highlight-bash"><pre><span class="nv">$ </span>npm run build
+</pre></div>
 
 <h2>
 <a name="author" class="anchor" href="#author"><span class="octicon octicon-link"></span></a>Author</h2>
