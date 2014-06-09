@@ -17,10 +17,12 @@ describe('Easymongo constructor', function() {
   });
 
   it('should set connection url from object', function() {
-    var mongo = new client({dbname: 'test'});
+    var mongo;
+
+    mongo = new client({dbname: 'test'});
     mongo.url.should.be.eql('mongodb://127.0.0.1:27017/test');
 
-    var mongo = new client({host: 'localhost', dbname: 'test'});
+    mongo = new client({host: 'localhost', dbname: 'test'});
     mongo.url.should.be.eql('mongodb://localhost:27017/test');
 
     (function() {

@@ -18,8 +18,8 @@
     }
   , "devDependencies": {
         "coffee-script": "~1.7.1"
-      , "mocha": "~1.18"
-      , "should": "~3.3"
+      , "mocha": "~1.20"
+      , "should": "~4.0.4"
       , "coveralls": "~2.10"
       , "istanbul": "~0.2"
     }
