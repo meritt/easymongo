@@ -1,6 +1,6 @@
 # easymongo
 
-[![NPM version](https://badge.fury.io/js/easymongo.svg)](http://badge.fury.io/js/easymongo) [![Build Status](https://travis-ci.org/meritt/easymongo.svg?branch=master)](https://travis-ci.org/meritt/easymongo) [![Coverage Status](https://coveralls.io/repos/meritt/easymongo/badge.png)](https://coveralls.io/r/meritt/easymongo) [![Dependency Status](https://david-dm.org/meritt/easymongo.svg?theme=shields.io)](https://david-dm.org/meritt/easymongo) [![devDependency Status](https://david-dm.org/meritt/easymongo/dev-status.svg?theme=shields.io)](https://david-dm.org/meritt/easymongo#info=devDependencies)
+[![NPM version](https://badge.fury.io/js/easymongo.svg)](http://badge.fury.io/js/easymongo) [![Build Status](https://travis-ci.org/meritt/easymongo.svg?branch=master)](https://travis-ci.org/meritt/easymongo) [![Coverage Status](https://img.shields.io/coveralls/meritt/easymongo.svg)](https://coveralls.io/r/meritt/easymongo?branch=master) [![Dependency Status](https://david-dm.org/meritt/easymongo.svg?theme=shields.io)](https://david-dm.org/meritt/easymongo) [![devDependency Status](https://david-dm.org/meritt/easymongo/dev-status.svg?theme=shields.io)](https://david-dm.org/meritt/easymongo#info=devDependencies)
 
 This is a small tweaks for the [native MongoDB driver](https://github.com/mongodb/node-mongodb-native).
 
