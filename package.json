@@ -18,10 +18,10 @@
     }
   , "devDependencies": {
         "coffee-script": "~1.7.1"
-      , "mocha": "~1.20"
+      , "mocha": "~1.21"
       , "should": "~4.0.4"
-      , "coveralls": "~2.10"
-      , "istanbul": "~0.2"
+      , "coveralls": "~2.11"
+      , "istanbul": "~0.3"
     }
   , "scripts": {
         "build": "./node_modules/.bin/coffee -c -b -o lib/ src/"
