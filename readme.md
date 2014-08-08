@@ -108,5 +108,3 @@ $ npm run build
 ## License
 
 The MIT License, see the included `license.md` file.
-
-[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/meritt/easymongo/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
