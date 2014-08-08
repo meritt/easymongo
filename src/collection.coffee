@@ -11,7 +11,7 @@ class Collection
   prepare: (params) ->
     return prepare params
 
-  find: (params, options, fn) ->
+  _find: (params, options, fn) ->
     {params, options, fn} = utils.normalize params, options, fn
 
     @db.open @name, (err, col) ->
@@ -40,13 +40,17 @@ class Collection
       return
     return
 
+  find: (params, options, fn) ->
+    @_find params, options, fn
+    return
+
   findOne: (params, options, fn) ->
     {params, options, fn} = utils.normalize params, options, fn
 
     options = {} unless options
     options.limit = 1
 
-    @find params, options, (error, results) ->
+    @_find params, options, (error, results) ->
       results = results[0] ? false
       fn error, results
 
@@ -63,8 +67,13 @@ class Collection
 
     params = _id: id
     options = if utils.is.arr fields then {fields} else {}
+    options.limit = 1
 
-    @findOne params, options, fn
+    @_find params, options, (error, results) ->
+      results = results[0] ? false
+      fn error, results
+
+      return
     return
 
   save: (params, fn) ->
@@ -108,7 +117,7 @@ class Collection
       return
     return
 
-  remove: (params, fn) ->
+  _remove: (params, fn) ->
     {params, fn} = utils.normalize params, fn
 
     @db.open @name, (err, col) ->
@@ -126,8 +135,12 @@ class Collection
       return
     return
 
+  remove: (params, fn) ->
+    @_remove params, fn
+    return
+
   removeById: (id, fn) ->
-    @remove {_id: id}, fn
+    @_remove {_id: id}, fn
     return
 
   count: (params, fn) ->
