@@ -198,9 +198,6 @@ describe('Easymongo', function() {
 
     should(mongo.db).be.ok;
     mongo.db.should.be.instanceof(Object);
-    mongo.db.should.have.property('constructor');
-    mongo.db.constructor.should.have.property('name');
-    mongo.db.constructor.name.should.be.eql('Db');
 
     res = mongo.close();
     res.should.be.true;
@@ -218,9 +215,6 @@ describe('Easymongo', function() {
       should(err).equal(null);
       should(res).be.ok;
       res.should.be.instanceof(Object);
-      res.should.have.property('constructor');
-      res.constructor.should.have.property('name');
-      res.constructor.name.should.be.eql('Collection');
 
       res.should.have.property('insert');
       res.insert([
@@ -234,8 +228,9 @@ describe('Easymongo', function() {
         should(err).equal(null);
         should(docs).be.ok;
 
-        docs.should.be.instanceof(Array);
-        docs.should.have.length(6);
+        should(docs.ops).be.ok;
+        docs.ops.should.be.instanceof(Array);
+        docs.ops.should.have.length(6);
 
         done();
       });

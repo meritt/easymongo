@@ -32,9 +32,9 @@ class Collection
         cursor.skip options.skip if options.skip
         cursor.sort options.sort if options.sort
 
-      cursor.toArray (error, results) ->
-        results = [] if error
-        fn error, results
+      cursor.toArray (error, response) ->
+        response = [] if error
+        fn error, response
 
         return
       return
@@ -50,9 +50,9 @@ class Collection
     options = {} unless options
     options.limit = 1
 
-    @_find params, options, (error, results) ->
-      results = results[0] ? false
-      fn error, results
+    @_find params, options, (error, response) ->
+      response = response[0] ? false
+      fn error, response
 
       return
     return
@@ -69,9 +69,9 @@ class Collection
     options = if utils.is.arr fields then {fields} else {}
     options.limit = 1
 
-    @_find params, options, (error, results) ->
-      results = results[0] ? false
-      fn error, results
+    @_find params, options, (error, response) ->
+      response = response[0] ? false
+      fn error, response
 
       return
     return
@@ -86,10 +86,18 @@ class Collection
 
       params = prepare params
 
-      col.save params, (error, results) ->
-        results = false if error
-        results = params if results is 1
-        fn error, results
+      col.save params, (error, response) ->
+        response = false if error
+
+        if response.result.n > 0
+          if response.ops?
+            response = if response.ops.length is 1 then response.ops[0] else response.ops
+          else
+            response = params
+        else
+          response = []
+
+        fn error, response
 
         return
       return
@@ -127,9 +135,9 @@ class Collection
 
       params = prepare params
 
-      col.remove params, (error, results) ->
-        results = false if error
-        fn error, results > 0
+      col.remove params, (error, response) ->
+        response = false if error
+        fn error, response.result.n > 0
 
         return
       return
@@ -153,9 +161,9 @@ class Collection
 
       params = prepare params
 
-      col.count params, (error, results) ->
-        results = false if error
-        fn error, parseInt(results, 10) or 0
+      col.count params, (error, response) ->
+        response = false if error
+        fn error, parseInt(response, 10) or 0
 
         return
       return
