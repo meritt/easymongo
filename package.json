@@ -17,17 +17,17 @@
       "mongodb": "~1.4.8"
     }
   , "devDependencies": {
-        "coffee-script": "~1.7.1"
-      , "mocha": "~1.21"
-      , "should": "~4.0.4"
+        "coffee-script": "~1.8.0"
+      , "mocha": "~2.0"
+      , "should": "~4.1.0"
       , "coveralls": "~2.11"
       , "istanbul": "~0.3"
     }
   , "scripts": {
-        "build": "./node_modules/.bin/coffee -c -b -o lib/ src/"
+        "build": "coffee -c -b -o lib/ src/"
       , "pretest": "npm run build"
-      , "posttest": "./node_modules/.bin/istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R dot && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage"
-      , "test": "./node_modules/.bin/mocha --reporter dot"
+      , "posttest": "istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R dot && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage"
+      , "test": "mocha --reporter dot"
     }
   , "license": "MIT"
 }
