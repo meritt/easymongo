@@ -27,7 +27,7 @@ class Client
     unless utils.is.fun(fn)
       fn = ->
 
-    if @db and @db.state and @db.state is 'connected'
+    if @db
       fn null, @db.collection name
     else
       MongoClient.connect @url, @options, (error, db) =>
