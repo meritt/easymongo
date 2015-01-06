@@ -1,6 +1,6 @@
 {
     "name": "easymongo"
-  , "version": "4.0.0"
+  , "version": "4.0.1"
   , "description": "Simple interface for the MongoDB API"
   , "keywords": ["easymongo", "mongo", "mongodb"]
   , "author": "Alexey Simonenko <alexey@simonenko.su>"
