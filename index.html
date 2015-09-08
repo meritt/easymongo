@@ -6,7 +6,7 @@
     <title>easymongo by meritt</title>
 
     <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
     <script src="javascripts/scale.fix.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <!--[if lt IE 9]>
@@ -30,68 +30,66 @@
 
       </header>
       <section>
-        <p><a href="https://npmjs.org/package/easymongo"><img src="https://img.shields.io/npm/v/easymongo.svg?style=flat" alt="NPM version"></a>
-<a href="https://travis-ci.org/meritt/easymongo"><img src="https://img.shields.io/travis/meritt/easymongo.svg?style=flat" alt="Build status"></a>
-<a href="https://coveralls.io/r/meritt/easymongo?branch=master"><img src="https://img.shields.io/coveralls/meritt/easymongo.svg?style=flat" alt="Test coverage"></a>
+        <p><a href="https://www.npmjs.com/package/easymongo"><img src="https://img.shields.io/npm/v/easymongo.svg?style=flat" alt="NPM version"></a>
+<a href="https://travis-ci.org/meritt/easymongo"><img src="https://travis-ci.org/meritt/easymongo.svg?branch=master" alt="Build status"></a>
+<a href="https://coveralls.io/github/meritt/easymongo?branch=master"><img src="https://coveralls.io/repos/meritt/easymongo/badge.svg?branch=master&amp;service=github" alt="Test coverage"></a>
 <a href="https://david-dm.org/meritt/easymongo"><img src="https://img.shields.io/david/meritt/easymongo.svg?style=flat" alt="Dependency status"></a>
 <a href="https://david-dm.org/meritt/easymongo#info=devDependencies"><img src="https://img.shields.io/david/dev/meritt/easymongo.svg?style=flat" alt="devDependency status"></a></p>
 
 <p>This is a small tweaks for the <a href="https://github.com/mongodb/node-mongodb-native">native MongoDB driver</a>.</p>
 
 <h2>
-<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h2>
 
-<div class="highlight highlight-bash"><pre><span class="nv">$ </span>npm install easymongo
-</pre></div>
-
-<h2>
-<a name="examples" class="anchor" href="#examples"><span class="octicon octicon-link"></span></a>Examples</h2>
-
-<div class="highlight highlight-js"><pre><span class="kd">var</span> <span class="nx">easymongo</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'easymongo'</span><span class="p">);</span>
-
-<span class="kd">var</span> <span class="nx">mongo</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">easymongo</span><span class="p">({</span><span class="nx">dbname</span><span class="o">:</span> <span class="s1">'test'</span><span class="p">});</span>
-<span class="kd">var</span> <span class="nx">users</span> <span class="o">=</span> <span class="nx">mongo</span><span class="p">.</span><span class="nx">collection</span><span class="p">(</span><span class="s1">'users'</span><span class="p">);</span>
-
-<span class="kd">var</span> <span class="nx">data</span> <span class="o">=</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">,</span> <span class="nx">surname</span><span class="o">:</span> <span class="s1">'Simonenko'</span><span class="p">,</span> <span class="nx">url</span><span class="o">:</span> <span class="s1">'http://simonenko.su'</span><span class="p">};</span>
-<span class="nx">users</span><span class="p">.</span><span class="nx">save</span><span class="p">(</span><span class="nx">data</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
-  <span class="c1">// Returns a new document (array).</span>
-  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span>
-<span class="p">});</span>
-
-<span class="nx">users</span><span class="p">.</span><span class="nx">find</span><span class="p">({</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">},</span> <span class="p">{</span><span class="nx">limit</span><span class="o">:</span> <span class="mi">2</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
-  <span class="c1">// Always return array of documents.</span>
-  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span>
-<span class="p">});</span>
-
-<span class="nx">users</span><span class="p">.</span><span class="nx">findById</span><span class="p">(</span><span class="s1">'4e4e1638c85e808431000003'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
-  <span class="c1">// Returns a document (object). If error occur then returns false.</span>
-  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span>
-<span class="p">});</span>
-
-<span class="nx">users</span><span class="p">.</span><span class="nx">count</span><span class="p">({</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
-  <span class="c1">// Amount (int). If error occur then returns zero.</span>
-  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span>
-<span class="p">});</span>
-
-<span class="nx">users</span><span class="p">.</span><span class="nx">remove</span><span class="p">({</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'Alexey'</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
-  <span class="c1">// Returns a result of operation (boolean). If error occur then returns false.</span>
-  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span>
-<span class="p">});</span>
-
-<span class="nx">users</span><span class="p">.</span><span class="nx">removeById</span><span class="p">(</span><span class="s1">'4e4e1638c85e808431000003'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
-  <span class="c1">// Returns a result of operation (boolean). If error occur then returns false.</span>
-  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">results</span><span class="p">);</span>
-<span class="p">});</span>
-</pre></div>
+<div class="highlight highlight-bash"><pre>$ npm install easymongo</pre></div>
 
 <h2>
-<a name="api" class="anchor" href="#api"><span class="octicon octicon-link"></span></a>API</h2>
+<a id="examples" class="anchor" href="#examples" aria-hidden="true"><span class="octicon octicon-link"></span></a>Examples</h2>
+
+<div class="highlight highlight-js"><pre><span class="pl-k">var</span> easymongo <span class="pl-k">=</span> <span class="pl-c1">require</span>(<span class="pl-s"><span class="pl-pds">'</span>easymongo<span class="pl-pds">'</span></span>);
+
+<span class="pl-k">var</span> mongo <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">easymongo</span>({dbname<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>test<span class="pl-pds">'</span></span>});
+<span class="pl-k">var</span> users <span class="pl-k">=</span> mongo.collection(<span class="pl-s"><span class="pl-pds">'</span>users<span class="pl-pds">'</span></span>);
+
+<span class="pl-k">var</span> data <span class="pl-k">=</span> {name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Alexey<span class="pl-pds">'</span></span>, surname<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Simonenko<span class="pl-pds">'</span></span>, url<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>http://simonenko.su<span class="pl-pds">'</span></span>};
+users.save(data, <span class="pl-k">function</span>(<span class="pl-smi">error</span>, <span class="pl-smi">results</span>) {
+  <span class="pl-c">// Returns a new document (array).</span>
+  <span class="pl-en">console</span><span class="pl-c1">.log</span>(results);
+});
+
+users.<span class="pl-c1">find</span>({name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Alexey<span class="pl-pds">'</span></span>}, {limit<span class="pl-k">:</span> <span class="pl-c1">2</span>}, <span class="pl-k">function</span>(<span class="pl-smi">error</span>, <span class="pl-smi">results</span>) {
+  <span class="pl-c">// Always return array of documents.</span>
+  <span class="pl-en">console</span><span class="pl-c1">.log</span>(results);
+});
+
+users.findById(<span class="pl-s"><span class="pl-pds">'</span>4e4e1638c85e808431000003<span class="pl-pds">'</span></span>, <span class="pl-k">function</span>(<span class="pl-smi">error</span>, <span class="pl-smi">results</span>) {
+  <span class="pl-c">// Returns a document (object). If error occur then returns false.</span>
+  <span class="pl-en">console</span><span class="pl-c1">.log</span>(results);
+});
+
+users.count({name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Alexey<span class="pl-pds">'</span></span>}, <span class="pl-k">function</span>(<span class="pl-smi">error</span>, <span class="pl-smi">results</span>) {
+  <span class="pl-c">// Amount (int). If error occur then returns zero.</span>
+  <span class="pl-en">console</span><span class="pl-c1">.log</span>(results);
+});
+
+users.remove({name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Alexey<span class="pl-pds">'</span></span>}, <span class="pl-k">function</span>(<span class="pl-smi">error</span>, <span class="pl-smi">results</span>) {
+  <span class="pl-c">// Returns a result of operation (boolean). If error occur then returns false.</span>
+  <span class="pl-en">console</span><span class="pl-c1">.log</span>(results);
+});
+
+users.removeById(<span class="pl-s"><span class="pl-pds">'</span>4e4e1638c85e808431000003<span class="pl-pds">'</span></span>, <span class="pl-k">function</span>(<span class="pl-smi">error</span>, <span class="pl-smi">results</span>) {
+  <span class="pl-c">// Returns a result of operation (boolean). If error occur then returns false.</span>
+  <span class="pl-en">console</span><span class="pl-c1">.log</span>(results);
+});</pre></div>
+
+<h2>
+<a id="api" class="anchor" href="#api" aria-hidden="true"><span class="octicon octicon-link"></span></a>API</h2>
 
 <h3>
-<a name="client-class" class="anchor" href="#client-class"><span class="octicon octicon-link"></span></a>Client class</h3>
+<a id="client-class" class="anchor" href="#client-class" aria-hidden="true"><span class="octicon octicon-link"></span></a>Client class</h3>
 
 <h4>
-<a name="constructor" class="anchor" href="#constructor"><span class="octicon octicon-link"></span></a>Constructor</h4>
+<a id="constructor" class="anchor" href="#constructor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Constructor</h4>
 
 <p>Arguments:</p>
 
@@ -103,7 +101,7 @@
 </ul>
 
 <h4>
-<a name="methods" class="anchor" href="#methods"><span class="octicon octicon-link"></span></a>Methods</h4>
+<a id="methods" class="anchor" href="#methods" aria-hidden="true"><span class="octicon octicon-link"></span></a>Methods</h4>
 
 <ul>
 <li>
@@ -117,10 +115,10 @@
 </ul>
 
 <h3>
-<a name="collection-class" class="anchor" href="#collection-class"><span class="octicon octicon-link"></span></a>Collection class</h3>
+<a id="collection-class" class="anchor" href="#collection-class" aria-hidden="true"><span class="octicon octicon-link"></span></a>Collection class</h3>
 
 <h4>
-<a name="methods-1" class="anchor" href="#methods-1"><span class="octicon octicon-link"></span></a>Methods</h4>
+<a id="methods-1" class="anchor" href="#methods-1" aria-hidden="true"><span class="octicon octicon-link"></span></a>Methods</h4>
 
 <ul>
 <li><code>find([params][, options][, callback])</code></li>
@@ -148,34 +146,33 @@
 </ul>
 
 <h2>
-<a name="flow-control" class="anchor" href="#flow-control"><span class="octicon octicon-link"></span></a>Flow control</h2>
+<a id="flow-control" class="anchor" href="#flow-control" aria-hidden="true"><span class="octicon octicon-link"></span></a>Flow control</h2>
 
 <p>You can use <code>easymongo</code> with <a href="https://github.com/visionmedia/co">co</a> for generator based flow-control. For these purposes use the <a href="https://github.com/meritt/co-easymongo">co-easymongo</a>.</p>
 
 <h2>
-<a name="contributing" class="anchor" href="#contributing"><span class="octicon octicon-link"></span></a>Contributing</h2>
+<a id="contributing" class="anchor" href="#contributing" aria-hidden="true"><span class="octicon octicon-link"></span></a>Contributing</h2>
 
 <p><strong>DO NOT directly modify the <code>lib</code> files.</strong> These files are automatically built from CoffeeScript sources located under the <code>src</code> directory.</p>
 
 <p>To do build run:</p>
 
-<div class="highlight highlight-bash"><pre><span class="nv">$ </span>npm run build
-</pre></div>
+<div class="highlight highlight-bash"><pre>$ npm run build</pre></div>
 
 <h2>
-<a name="author" class="anchor" href="#author"><span class="octicon octicon-link"></span></a>Author</h2>
+<a id="author" class="anchor" href="#author" aria-hidden="true"><span class="octicon octicon-link"></span></a>Author</h2>
 
 <ul>
 <li><a href="https://github.com/meritt">Alexey Simonenko</a></li>
 </ul>
 
 <h2>
-<a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>License</h2>
+<a id="license" class="anchor" href="#license" aria-hidden="true"><span class="octicon octicon-link"></span></a>License</h2>
 
 <p>The MIT License, see the included <code>license.md</code> file.</p>
       </section>
       <footer>
-        <p><small>Hosted on <a href="http://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
       </footer>
     </div>
     <!--[if !IE]><script>fixScale(document);</script><![endif]-->
