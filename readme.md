@@ -114,11 +114,11 @@ $ npm run build
 The MIT License, see the included `license.md` file.
 
 [npm-image]: https://img.shields.io/npm/v/easymongo.svg?style=flat
-[npm-url]: https://npmjs.org/package/easymongo
-[travis-image]: https://img.shields.io/travis/meritt/easymongo.svg?style=flat
+[npm-url]: https://www.npmjs.com/package/easymongo
+[travis-image]: https://travis-ci.org/meritt/easymongo.svg?branch=master
 [travis-url]: https://travis-ci.org/meritt/easymongo
-[coveralls-image]: https://img.shields.io/coveralls/meritt/easymongo.svg?style=flat
-[coveralls-url]: https://coveralls.io/r/meritt/easymongo?branch=master
+[coveralls-image]: https://coveralls.io/repos/meritt/easymongo/badge.svg?branch=master&service=github
+[coveralls-url]: https://coveralls.io/github/meritt/easymongo?branch=master
 [dependency-image]: https://img.shields.io/david/meritt/easymongo.svg?style=flat
 [dependency-url]: https://david-dm.org/meritt/easymongo
 [devdependency-image]: https://img.shields.io/david/dev/meritt/easymongo.svg?style=flat
