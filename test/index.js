@@ -10,124 +10,92 @@ const users = mongo.collection(collection);
 const oid = '4e4e1638c85e808431000003';
 
 describe('Easymongo', function() {
-  it('should return false if nothing to remove', function(done) {
-    users.remove(function() {
-      users.remove(function(err, res) {
-        should(err).equal(null);
-        res.should.be.false;
-
-        done();
-      });
-    });
+  it('should return false if nothing to remove', function() {
+    return users.remove().then(function() {
+      return users.remove();
+    }).should.be.false;
   });
 
-  it('should return false if nothing to remove (removeById)', function(done) {
-    users.removeById(oid, function(err, res) {
-      should(err).equal(null);
-      res.should.be.false;
-
-      done();
-    });
+  it('should return false if nothing to remove (removeById)', function() {
+    return users.removeById(oid).should.be.false;
   });
 
-  it('should return empty array if nothing found', function(done) {
-    users.find({name: 'Alexey'}, function(err, res) {
-      should(err).equal(null);
+  it('should return empty array if nothing found', function() {
+    return users.find({name: 'Alexey'}).then(function(res) {
       res.should.be.instanceof(Array);
       res.should.have.length(0);
-
-      done();
     });
   });
 
-  it('should return empty array if nothing found (findById)', function(done) {
-    users.findById(oid, function(err, res) {
-      should(err).equal(null);
-      res.should.be.false;
-
-      done();
-    });
+  it('should return empty array if nothing found (findById)', function() {
+    return users.findById(oid).should.be.false;
   });
 
-  it('should return zero if collection is empty', function(done) {
-    users.count(function(err, res) {
-      should(err).equal(null);
+  it('should return zero if collection is empty', function() {
+    return users.count().then(function(res) {
       res.should.be.eql(0);
-
-      done();
     });
   });
 
-  it('should save new documents and count it', function(done) {
-    users.save({name: 'Alexey', url: 'simonenko.su'}, function(err, a) {
-      should(err).equal(null);
+  it('should save new documents and count it', function() {
+    return users.save({name: 'Alexey', url: 'simonenko.su'}).then(function(a) {
       should(a).be.ok;
 
       a.should.be.instanceof(Object);
       a.should.have.property('_id');
       a.should.have.property('url', 'simonenko.su');
 
-      users.save({name: 'Alexey', url: 'chocolatejs.ru'}, function(err, b) {
-        should(err).equal(null);
-        should(b).be.ok;
+      return users.save({name: 'Alexey', url: 'chocolatejs.ru'});
+    }).then(function(b) {
+      should(b).be.ok;
 
-        b.should.be.instanceof(Object);
-        b.should.have.property('_id');
-        b.should.have.property('url', 'chocolatejs.ru');
+      b.should.be.instanceof(Object);
+      b.should.have.property('_id');
+      b.should.have.property('url', 'chocolatejs.ru');
 
-        users.save({name: 'Alena', url: 'simonenko.su'}, function(err, c) {
-          should(err).equal(null);
-          should(c).be.ok;
+      return users.save({name: 'Alena', url: 'simonenko.su'});
+    }).then(function(c) {
+      should(c).be.ok;
 
-          c.should.be.instanceof(Object);
-          c.should.have.property('_id');
-          c.should.have.property('url', 'simonenko.su');
+      c.should.be.instanceof(Object);
+      c.should.have.property('_id');
+      c.should.have.property('url', 'simonenko.su');
 
-          users.count(function(err, count) {
-            should(err).equal(null);
-            should(count).be.ok;
+      return users.count();
+    }).then(function(count) {
+      should(count).be.ok;
 
-            count.should.be.eql(3);
-
-            done();
-          });
-        });
-      });
+      count.should.be.eql(3);
     });
   });
 
-  it('should find and remove documents', function(done) {
-    users.find({url: 'simonenko.su'}, function(err, res) {
-      should(err).equal(null);
+  it('should find and remove documents', function() {
+    let aid;
+
+    return users.find({url: 'simonenko.su'}).then(function(res) {
       should(res).be.ok;
 
       res.should.be.instanceof(Array);
       res.should.have.length(2);
       res[0].should.have.property('_id');
 
-      let aid = '' + res[0]._id;
-      let bid = '' + res[1]._id;
+      aid = '' + res[0]._id;
 
-      users.removeById(bid, function(err, res) {
-        should(err).equal(null);
-        res.should.be.true;
+      return users.removeById('' + res[1]._id);
+    }).then(function(res) {
+      res.should.be.true;
 
-        users.findById(aid, function(err, res) {
-          should(err).equal(null);
-          should(res).be.ok;
+      return users.findById(aid);
+    }).then(function(res) {
+      should(res).be.ok;
 
-          res.should.be.instanceof(Object);
-          res.should.have.property('_id');
-
-          done();
-        });
-      });
+      res.should.be.instanceof(Object);
+      res.should.have.property('_id');
     });
   });
 
-  it('should update document if it already saved', function(done) {
-    users.find(null, {limit: 1}, function(err, res) {
-      should(err).equal(null);
+  it('should update document if it already saved', function() {
+    return users.find(null, {limit: 1}).then(function(res) {
       should(res).be.ok;
 
       res.should.be.instanceof(Array);
@@ -135,33 +103,26 @@ describe('Easymongo', function() {
 
       res[0].name = 'Eva';
 
-      users.save(res[0], function(err, doc) {
-        should(err).equal(null);
-        should(doc).be.ok;
+      return users.save(res[0]);
+    }).then(function(doc) {
+      should(doc).be.ok;
 
-        doc.should.be.instanceof(Object);
-        doc.should.have.property('_id');
-        doc.name.should.be.eql('Eva');
+      doc.should.be.instanceof(Object);
+      doc.should.have.property('_id');
+      doc.name.should.be.eql('Eva');
 
-        users.count(function(err, count) {
-          should(err).equal(null);
-          count.should.be.eql(2);
-
-          done();
-        });
-      });
+      return users.count();
+    }).then(function(count) {
+      count.should.be.eql(2);
     });
   });
 
-  it('should works with id property', function(done) {
-    users.find({id: {$nin: [oid]}}, function(err, res) {
-      should(err).equal(null);
+  it('should works with id property', function() {
+    return users.find({id: {$nin: [oid]}}).then(function(res) {
       should(res).be.ok;
 
       res.should.be.instanceof(Array);
       res.should.have.length(2);
-
-      done();
     });
   });
 
@@ -239,7 +200,7 @@ describe('Easymongo', function() {
     });
   });
 
-  it('should find documents with advanced options', function(done) {
+  it('should find documents with advanced options', function() {
     let query = {
       test: {
         $exists: true
@@ -254,8 +215,7 @@ describe('Easymongo', function() {
       }
     };
 
-    users.find(query, options, function(err, res) {
-      should(err).equal(null);
+    return users.find(query, options).then(function(res) {
       should(res).be.ok;
 
       res.should.be.instanceof(Array);
@@ -263,12 +223,10 @@ describe('Easymongo', function() {
 
       res[0].test.should.eql('d');
       res[1].test.should.eql('c');
-
-      done();
     });
   });
 
-  it('should find documents and return limited fields', function(done) {
+  it('should find documents and return limited fields', function() {
     let query = {
       test: {
         $exists: true
@@ -279,8 +237,7 @@ describe('Easymongo', function() {
       fields: [false, {'name': 1}, 'created', 100]
     };
 
-    users.find(query, options, function(err, res) {
-      should(err).equal(null);
+    return users.find(query, options).then(function(res) {
       should(res).be.ok;
 
       res.should.be.instanceof(Array);
@@ -292,36 +249,29 @@ describe('Easymongo', function() {
         res[i].should.not.have.property('test');
         res[i].should.not.have.property('name');
       }
-
-      done();
     });
   });
 
-  it('should limit fields for findById method', function(done) {
+  it('should limit fields for findById method', function() {
     let query = {
       test: {
         $exists: true
       }
     };
 
-    users.find(query, function(err, res) {
-      should(err).equal(null);
+    return users.find(query).then(function(res) {
       should(res).be.ok;
-
       let bid = '' + res[0]._id;
-
-      users.findById(bid, [false, {'name': 1}, 'created', 100], function(err, res) {
-        res.should.have.property('_id');
-        res.should.have.property('created');
-        res.should.not.have.property('test');
-        res.should.not.have.property('name');
-
-        done();
-      });
+      return users.findById(bid, [false, {'name': 1}, 'created', 100]);
+    }).then(function(res) {
+      res.should.have.property('_id');
+      res.should.have.property('created');
+      res.should.not.have.property('test');
+      res.should.not.have.property('name');
     });
   });
 
-  it('should find one document', function(done) {
+  it('should find one document', function() {
     let query = {
       test: {
         $exists: true
@@ -335,67 +285,61 @@ describe('Easymongo', function() {
       }
     };
 
-    users.findOne({slug: {$exists: true}}, function(err, res) {
-      should(err).equal(null);
+    return users.findOne({slug: {$exists: true}}).then(function(res) {
       should(res).be.false;
 
-      users.findOne(query, options, function(err, res) {
-        should(err).equal(null);
-        should(res).be.ok;
+      return users.findOne(query, options);
+    }).then(function(res) {
+      should(res).be.ok;
 
-        res.should.be.instanceof(Object);
-        res.test.should.eql('f');
-        res.name.should.eql('6');
-        res.should.not.have.property('created');
-
-        done();
-      });
+      res.should.be.instanceof(Object);
+      res.test.should.eql('f');
+      res.name.should.eql('6');
+      res.should.not.have.property('created');
     });
   });
 
-  it('should modify documents with update operators', function(done) {
-    users.find(null, {limit: 3}, function(err, res) {
-      should(err).equal(null);
+  it('should modify documents with update operators', function() {
+    let a;
+    let b;
+    let c;
+
+    return users.find(null, {limit: 3}).then(function(res) {
       res.should.be.instanceof(Array);
       res.should.have.length(3);
 
-      let a = '' + res[0]._id;
-      let b = '' + res[1]._id;
-      let c = '' + res[2]._id;
+      a = '' + res[0]._id;
+      b = '' + res[1]._id;
+      c = '' + res[2]._id;
 
       let data = {
         name: 'update fn',
         related: [a, b, c]
       };
 
-      users.save(data, function(error, result) {
-        should(error).equal(null);
-        should(result).be.ok;
+      return users.save(data);
+    }).then(function(result) {
+      should(result).be.ok;
 
-        result.should.be.instanceof(Object);
-        result.should.have.property('_id');
-        result.should.have.property('related');
-        result.related.should.have.length(3);
-        result.related.should.containEql(b);
+      result.should.be.instanceof(Object);
+      result.should.have.property('_id');
+      result.should.have.property('related');
+      result.related.should.have.length(3);
+      result.related.should.containEql(b);
 
-        users.update({name: 'update fn'}, {$pull: {related: b}}, function(error, result) {
-          should(error).equal(null);
-          result.should.be.true;
+      return users.update({name: 'update fn'}, {$pull: {related: b}});
+    }).then(function(result) {
+      result.should.be.true;
 
-          users.find({name: 'update fn'}, function(error, result) {
-            should(error).equal(null);
-            result.should.be.instanceof(Array);
-            result.should.have.length(1);
+      return users.find({name: 'update fn'});
+    }).then(function(result) {
+      result.should.be.instanceof(Array);
+      result.should.have.length(1);
 
-            result[0].should.have.property('related');
-            result[0].related.should.have.length(2);
-            result[0].related.should.containEql(a);
-            result[0].related.should.containEql(c);
-
-            done();
-          });
-        });
-      });
+      result[0].should.have.property('related');
+      result[0].related.should.have.length(2);
+      result[0].related.should.containEql(a);
+      result[0].related.should.containEql(c);
     });
   });
 });
