@@ -24,32 +24,32 @@ let users = mongo.collection('users');
 
 let data = {name: 'Alexey', surname: 'Simonenko', url: 'http://simonenko.su'};
 
-users.save(data, function(err, res) {
+users.save(data).then(function(res) {
   // Returns a new document (array).
   console.log(res);
 });
 
-users.find({name: 'Alexey'}, {limit: 2}, function(err, res) {
+users.find({name: 'Alexey'}, {limit: 2}).then(function(res) {
   // Always return array of documents.
   console.log(res);
 });
 
-users.findById('4e4e1638c85e808431000003', function(err, res) {
+users.findById('4e4e1638c85e808431000003').then(function(res) {
   // Returns a document (object). If error occur then returns false.
   console.log(res);
 });
 
-users.count({name: 'Alexey'}, function(err, res) {
+users.count({name: 'Alexey'}).then(function(res) {
   // Amount (int). If error occur then returns zero.
   console.log(res);
 });
 
-users.remove({name: 'Alexey'}, function(err, res) {
+users.remove({name: 'Alexey'}).then(function(res) {
   // Returns a result of operation (boolean). If error occur then returns false.
   console.log(res);
 });
 
-users.removeById('4e4e1638c85e808431000003', function(err, res) {
+users.removeById('4e4e1638c85e808431000003').then(function(res) {
   // Returns a result of operation (boolean). If error occur then returns false.
   console.log(res);
 });
@@ -76,14 +76,16 @@ Arguments:
 
 #### Methods
 
-* `find([params][, options][, callback])`
-* `findOne([params][, options][, callback])`
-* `findById(oid[, fields][, callback])`
-* `save(data[, callback])`
-* `update(params, data[, callback])`
-* `remove([params][, callback])`
-* `removeById(oid[, callback])`
-* `count([params][, callback])`
+* `find([params][, options])`
+* `findOne([params][, options])`
+* `findById(oid[, fields])`
+* `save(data)`
+* `update(params, data)`
+* `remove([params])`
+* `removeById(oid)`
+* `count([params])`
+
+All methods return a Promise.
 
 Possible find `options`:
 
@@ -94,7 +96,7 @@ Possible find `options`:
 
 ## Flow control
 
-You can use `easymongo` with [co](https://github.com/visionmedia/co) for generator based flow-control. For these purposes use the [co-easymongo](https://github.com/meritt/co-easymongo).
+You can use `easymongo` with [co](https://github.com/visionmedia/co) for promise/generator based flow-control.
 
 ## Author
 
