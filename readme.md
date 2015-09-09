@@ -11,46 +11,47 @@ This is a small tweaks for the [native MongoDB driver](https://github.com/mongod
 ## Installation
 
 ```bash
-$ npm install easymongo
+$ npm i --save easymongo
 ```
 
 ## Examples
 
 ```js
-var easymongo = require('easymongo');
+const Client = require('easymongo');
 
-var mongo = new easymongo({dbname: 'test'});
-var users = mongo.collection('users');
+let mongo = new Client({dbname: 'test'});
+let users = mongo.collection('users');
 
-var data = {name: 'Alexey', surname: 'Simonenko', url: 'http://simonenko.su'};
-users.save(data, function(error, results) {
+let data = {name: 'Alexey', surname: 'Simonenko', url: 'http://simonenko.su'};
+
+users.save(data, function(err, res) {
   // Returns a new document (array).
-  console.log(results);
+  console.log(res);
 });
 
-users.find({name: 'Alexey'}, {limit: 2}, function(error, results) {
+users.find({name: 'Alexey'}, {limit: 2}, function(err, res) {
   // Always return array of documents.
-  console.log(results);
+  console.log(res);
 });
 
-users.findById('4e4e1638c85e808431000003', function(error, results) {
+users.findById('4e4e1638c85e808431000003', function(err, res) {
   // Returns a document (object). If error occur then returns false.
-  console.log(results);
+  console.log(res);
 });
 
-users.count({name: 'Alexey'}, function(error, results) {
+users.count({name: 'Alexey'}, function(err, res) {
   // Amount (int). If error occur then returns zero.
-  console.log(results);
+  console.log(res);
 });
 
-users.remove({name: 'Alexey'}, function(error, results) {
+users.remove({name: 'Alexey'}, function(err, res) {
   // Returns a result of operation (boolean). If error occur then returns false.
-  console.log(results);
+  console.log(res);
 });
 
-users.removeById('4e4e1638c85e808431000003', function(error, results) {
+users.removeById('4e4e1638c85e808431000003', function(err, res) {
   // Returns a result of operation (boolean). If error occur then returns false.
-  console.log(results);
+  console.log(res);
 });
 ```
 
@@ -94,16 +95,6 @@ Possible find `options`:
 ## Flow control
 
 You can use `easymongo` with [co](https://github.com/visionmedia/co) for generator based flow-control. For these purposes use the [co-easymongo](https://github.com/meritt/co-easymongo).
-
-## Contributing
-
-**DO NOT directly modify the `lib` files.** These files are automatically built from CoffeeScript sources located under the `src` directory.
-
-To do build run:
-
-```bash
-$ npm run build
-```
 
 ## Author
 
