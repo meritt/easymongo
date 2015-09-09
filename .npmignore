@@ -1,4 +1,5 @@
+.editorconfig
+.eslintrc
 .travis.yml
-src
 test
 todo.md
