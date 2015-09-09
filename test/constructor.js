@@ -6,9 +6,9 @@ describe('Easymongo constructor', function() {
   it('should throw error if connection url not specified', function() {
     let poor = [undefined, null, true, false, 10, [], ['10', '20'], function() {}];
 
-    for (let i=0, length=poor.length; i<length; i++) {
+    for (let i = 0, length = poor.length; i < length; i++) {
       (function() {
-        let mongo = new Client(poor[i]);
+        new Client(poor[i]);
       }).should.throw('Connection url to mongo must be specified');
     }
   });
@@ -28,7 +28,7 @@ describe('Easymongo constructor', function() {
     mongo.url.should.be.eql('mongodb://localhost:27017/test');
 
     (function() {
-      let mongo = new Client({host: 'localhost'});
+      new Client({host: 'localhost'});
     }).should.throw('The db name must be configured (server.dbname)');
   });
 });

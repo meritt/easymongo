@@ -105,8 +105,8 @@ describe('Easymongo', function() {
       res.should.have.length(2);
       res[0].should.have.property('_id');
 
-      let aid = "" + res[0]._id;
-      let bid = "" + res[1]._id;
+      let aid = '' + res[0]._id;
+      let bid = '' + res[1]._id;
 
       users.removeById(bid, function(err, res) {
         should(err).equal(null);
@@ -286,7 +286,7 @@ describe('Easymongo', function() {
       res.should.be.instanceof(Array);
       res.should.have.length(6);
 
-      for (let i=0; i<res.length; i++) {
+      for (let i = 0; i < res.length; i++) {
         res[i].should.have.property('_id');
         res[i].should.have.property('created');
         res[i].should.not.have.property('test');
@@ -308,7 +308,7 @@ describe('Easymongo', function() {
       should(err).equal(null);
       should(res).be.ok;
 
-      let bid = "" + res[0]._id;
+      let bid = '' + res[0]._id;
 
       users.findById(bid, [false, {'name': 1}, 'created', 100], function(err, res) {
         res.should.have.property('_id');
