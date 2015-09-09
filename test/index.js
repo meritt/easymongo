@@ -1,11 +1,13 @@
-var should = require('should');
+'use strict';
 
-var client = require('..');
-var mongo = new client({dbname: 'test'});
+const should = require('should');
 
-var collection = 'users';
-var users = mongo.collection(collection);
-var oid = '4e4e1638c85e808431000003';
+const Client = require('..');
+const mongo = new Client({dbname: 'test'});
+
+const collection = 'users';
+const users = mongo.collection(collection);
+const oid = '4e4e1638c85e808431000003';
 
 describe('Easymongo', function() {
   it('should return false if nothing to remove', function(done) {
@@ -103,8 +105,8 @@ describe('Easymongo', function() {
       res.should.have.length(2);
       res[0].should.have.property('_id');
 
-      var aid = "" + res[0]._id;
-      var bid = "" + res[1]._id;
+      let aid = "" + res[0]._id;
+      let bid = "" + res[1]._id;
 
       users.removeById(bid, function(err, res) {
         should(err).equal(null);
@@ -164,7 +166,7 @@ describe('Easymongo', function() {
   });
 
   it('should create new ObjectID', function() {
-    var bid = users.oid();
+    let bid = users.oid();
     bid.should.be.instanceof(Object);
     bid.constructor.name.should.eql('ObjectID');
   });
@@ -194,7 +196,7 @@ describe('Easymongo', function() {
   });
 
   it('should have db property and can close connection', function() {
-    var res;
+    let res;
 
     should(mongo.db).be.ok;
     mongo.db.should.be.instanceof(Object);
@@ -209,9 +211,9 @@ describe('Easymongo', function() {
   });
 
   it('should return collection object for native operations', function(done) {
-    mongo = new client({dbname: 'test'});
+    const mongo2 = new Client({dbname: 'test'});
 
-    mongo.open(collection, function(err, res) {
+    mongo2.open(collection, function(err, res) {
       should(err).equal(null);
       should(res).be.ok;
       res.should.be.instanceof(Object);
@@ -238,13 +240,13 @@ describe('Easymongo', function() {
   });
 
   it('should find documents with advanced options', function(done) {
-    var query = {
+    let query = {
       test: {
         $exists: true
       }
     };
 
-    var options = {
+    let options = {
       limit: 2,
       skip: 2,
       sort: {
@@ -267,13 +269,13 @@ describe('Easymongo', function() {
   });
 
   it('should find documents and return limited fields', function(done) {
-    var query = {
+    let query = {
       test: {
         $exists: true
       }
     };
 
-    var options = {
+    let options = {
       fields: [false, {'name': 1}, 'created', 100]
     };
 
@@ -284,7 +286,7 @@ describe('Easymongo', function() {
       res.should.be.instanceof(Array);
       res.should.have.length(6);
 
-      for (var i=0; i<res.length; i++) {
+      for (let i=0; i<res.length; i++) {
         res[i].should.have.property('_id');
         res[i].should.have.property('created');
         res[i].should.not.have.property('test');
@@ -296,7 +298,7 @@ describe('Easymongo', function() {
   });
 
   it('should limit fields for findById method', function(done) {
-    var query = {
+    let query = {
       test: {
         $exists: true
       }
@@ -306,7 +308,7 @@ describe('Easymongo', function() {
       should(err).equal(null);
       should(res).be.ok;
 
-      var bid = "" + res[0]._id;
+      let bid = "" + res[0]._id;
 
       users.findById(bid, [false, {'name': 1}, 'created', 100], function(err, res) {
         res.should.have.property('_id');
@@ -320,13 +322,13 @@ describe('Easymongo', function() {
   });
 
   it('should find one document', function(done) {
-    var query = {
+    let query = {
       test: {
         $exists: true
       }
     };
 
-    var options = {
+    let options = {
       fields: ['test', 'name'],
       sort: {
         name: -1
@@ -357,11 +359,11 @@ describe('Easymongo', function() {
       res.should.be.instanceof(Array);
       res.should.have.length(3);
 
-      var a = '' + res[0]._id;
-      var b = '' + res[1]._id;
-      var c = '' + res[2]._id;
+      let a = '' + res[0]._id;
+      let b = '' + res[1]._id;
+      let c = '' + res[2]._id;
 
-      var data = {
+      let data = {
         name: 'update fn',
         related: [a, b, c]
       };
