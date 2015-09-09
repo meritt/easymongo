@@ -35,22 +35,22 @@ users.find({name: 'Alexey'}, {limit: 2}).then(function(res) {
 });
 
 users.findById('4e4e1638c85e808431000003').then(function(res) {
-  // Returns a document (object). If error occur then returns false.
+  // Returns a document (object). If error occurs then will return false.
   console.log(res);
 });
 
 users.count({name: 'Alexey'}).then(function(res) {
-  // Amount (int). If error occur then returns zero.
+  // Amount (int). If error occurs then will return zero.
   console.log(res);
 });
 
 users.remove({name: 'Alexey'}).then(function(res) {
-  // Returns a result of operation (boolean). If error occur then returns false.
+  // Returns a result of operation (boolean). If error occurs then will return false.
   console.log(res);
 });
 
 users.removeById('4e4e1638c85e808431000003').then(function(res) {
-  // Returns a result of operation (boolean). If error occur then returns false.
+  // Returns a result of operation (boolean). If error occurs then will return false.
   console.log(res);
 });
 ```
@@ -90,9 +90,9 @@ All methods return a Promise.
 Possible find `options`:
 
 * `limit` — to specify the maximum number of documents ([more info](http://docs.mongodb.org/manual/reference/method/cursor.limit/))
-* `skip` — to control where MongoDB begins returning results ([more info](http://docs.mongodb.org/manual/reference/method/cursor.skip/))
-* `sort` — controls the order that the query returns matching documents ([more info](http://docs.mongodb.org/manual/reference/method/cursor.sort/))
-* `fields` — specify fields array to limit fields in returned documents, e.g. `["name", "url"]`
+* `skip` — to control where MongoDB begins return results ([more info](http://docs.mongodb.org/manual/reference/method/cursor.skip/))
+* `sort` — to control the order of matching documents ([more info](http://docs.mongodb.org/manual/reference/method/cursor.sort/))
+* `fields` — specify array of fields in returned documents, e.g. `["name", "url"]`
 
 ## Flow control
 
