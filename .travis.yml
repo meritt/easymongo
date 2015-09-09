@@ -4,6 +4,4 @@ services:
   - mongodb
 
 node_js:
-  - "0.10"
-  - "0.12"
-  - "iojs"
+  - "4.0"
