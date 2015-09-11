@@ -24,7 +24,8 @@
     "husky": "^0.10.1",
     "istanbul": "^0.3",
     "mocha": "^2.3",
-    "should": "^7.1"
+    "should": "^7.1",
+    "should-promised": "^0.3.1"
   },
   "scripts": {
     "lint": "eslint .",

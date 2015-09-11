@@ -1,5 +1,6 @@
 --reporter spec
 --require should
+--require should-promised
 --bail
 --check-leaks
 
