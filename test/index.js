@@ -171,32 +171,37 @@ describe('Easymongo', function() {
     should(mongo.db).equal(null);
   });
 
-  it('should return collection object for native operations', function(done) {
+  it('should return collection object for native operations', function() {
     const mongo2 = new Client({dbname: 'test'});
 
-    mongo2.open(collection, function(err, res) {
-      should(err).equal(null);
+    return mongo2.open(collection).then(function(res) {
       should(res).be.ok;
+
       res.should.be.instanceof(Object);
-
       res.should.have.property('insert');
-      res.insert([
-        {test: 'a', name: '1', created: '12:34'},
-        {test: 'b', name: '2', created: '12:34'},
-        {test: 'c', name: '3', created: '12:34'},
-        {test: 'd', name: '4', created: '12:34'},
-        {test: 'e', name: '5', created: '12:34'},
-        {test: 'f', name: '6', created: '12:34'}
-      ], function(err, docs) {
-        should(err).equal(null);
-        should(docs).be.ok;
 
-        should(docs.ops).be.ok;
-        docs.ops.should.be.instanceof(Array);
-        docs.ops.should.have.length(6);
+      return new Promise(function(resolve, reject) {
+        res.insert([
+          {test: 'a', name: '1', created: '12:34'},
+          {test: 'b', name: '2', created: '12:34'},
+          {test: 'c', name: '3', created: '12:34'},
+          {test: 'd', name: '4', created: '12:34'},
+          {test: 'e', name: '5', created: '12:34'},
+          {test: 'f', name: '6', created: '12:34'}
+        ], function(err, docs) {
+          if (err) {
+            return reject(err.message);
+          }
 
-        done();
+          resolve(docs);
+        });
       });
+    }).then(function(docs) {
+      should(docs).be.ok;
+
+      should(docs.ops).be.ok;
+      docs.ops.should.be.instanceof(Array);
+      docs.ops.should.have.length(6);
     });
   });
 

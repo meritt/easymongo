@@ -69,7 +69,7 @@ Arguments:
 #### Methods
 
 * `collection(name)` — returns a new instance of the easymongo [Collection class](#collection-class)
-* `open(name[, callback])` — returns the [MongoDB Collection](http://mongodb.github.io/node-mongodb-native/api-generated/collection.html)
+* `open(name)` — returns a Promise of [MongoDB Collection](http://mongodb.github.io/node-mongodb-native/api-generated/collection.html)
 * `close()` — close the db connection
 
 ### Collection class
