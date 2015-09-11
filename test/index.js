@@ -216,6 +216,29 @@ describe('Easymongo', function() {
     should(mongo.db).be.null();
   });
 
+  it('should have db property after open connection', function() {
+    let a;
+    let b;
+
+    const mongo2 = new Client({dbname: 'test'});
+
+    mongo2.should.not.have.property('db');
+
+    a = mongo2.open(collection);
+    a.should.be.a.Promise();
+
+    return a.then(function() {
+      mongo2.should.have.property('db');
+
+      b = mongo2.open(collection);
+      b.should.be.a.Promise();
+
+      return b;
+    }).then(function() {
+      a.should.be.eql(b);
+    });
+  });
+
   it('should return collection object for native operations', function() {
     const mongo2 = new Client({dbname: 'test'});
 
