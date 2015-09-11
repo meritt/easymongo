@@ -98,7 +98,7 @@ Possible find `options`:
 
 ## Flow control
 
-You can use `easymongo` with [co](https://github.com/visionmedia/co) for promise/generator based flow-control.
+You can use `easymongo` with [co](https://github.com/tj/co) for promise/generator based flow-control.
 
 ## Author
 
