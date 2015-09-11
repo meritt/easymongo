@@ -8,6 +8,8 @@
 
 This is a small tweaks for the [native MongoDB driver](https://github.com/mongodb/node-mongodb-native).
 
+Easymongo v5 now support only Node.js v4. For previous version you can use [the older easymongo](https://github.com/meritt/easymongo/releases/tag/v4.0.2).
+
 ## Installation
 
 ```bash
