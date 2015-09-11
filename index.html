@@ -38,48 +38,51 @@
 
 <p>This is a small tweaks for the <a href="https://github.com/mongodb/node-mongodb-native">native MongoDB driver</a>.</p>
 
+<p>Easymongo v5 now support only Node.js v4. For previous version you can use <a href="https://github.com/meritt/easymongo/releases/tag/v4.0.2">the older easymongo</a>.</p>
+
 <h2>
 <a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h2>
 
-<div class="highlight highlight-bash"><pre>$ npm install easymongo</pre></div>
+<div class="highlight highlight-bash"><pre>$ npm i --save easymongo</pre></div>
 
 <h2>
 <a id="examples" class="anchor" href="#examples" aria-hidden="true"><span class="octicon octicon-link"></span></a>Examples</h2>
 
-<div class="highlight highlight-js"><pre><span class="pl-k">var</span> easymongo <span class="pl-k">=</span> <span class="pl-c1">require</span>(<span class="pl-s"><span class="pl-pds">'</span>easymongo<span class="pl-pds">'</span></span>);
+<div class="highlight highlight-js"><pre><span class="pl-k">const</span> <span class="pl-c1">Client</span> <span class="pl-k">=</span> <span class="pl-c1">require</span>(<span class="pl-s"><span class="pl-pds">'</span>easymongo<span class="pl-pds">'</span></span>);
 
-<span class="pl-k">var</span> mongo <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">easymongo</span>({dbname<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>test<span class="pl-pds">'</span></span>});
-<span class="pl-k">var</span> users <span class="pl-k">=</span> mongo.collection(<span class="pl-s"><span class="pl-pds">'</span>users<span class="pl-pds">'</span></span>);
+<span class="pl-k">let</span> mongo <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">Client</span>({dbname<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>test<span class="pl-pds">'</span></span>});
+<span class="pl-k">let</span> users <span class="pl-k">=</span> mongo.collection(<span class="pl-s"><span class="pl-pds">'</span>users<span class="pl-pds">'</span></span>);
 
-<span class="pl-k">var</span> data <span class="pl-k">=</span> {name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Alexey<span class="pl-pds">'</span></span>, surname<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Simonenko<span class="pl-pds">'</span></span>, url<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>http://simonenko.su<span class="pl-pds">'</span></span>};
-users.save(data, <span class="pl-k">function</span>(<span class="pl-smi">error</span>, <span class="pl-smi">results</span>) {
+<span class="pl-k">let</span> data <span class="pl-k">=</span> {name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Alexey<span class="pl-pds">'</span></span>, surname<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Simonenko<span class="pl-pds">'</span></span>, url<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>http://simonenko.su<span class="pl-pds">'</span></span>};
+
+users.save(data).then(<span class="pl-k">function</span>(<span class="pl-smi">res</span>) {
   <span class="pl-c">// Returns a new document (array).</span>
-  <span class="pl-en">console</span><span class="pl-c1">.log</span>(results);
+  <span class="pl-en">console</span><span class="pl-c1">.log</span>(res);
 });
 
-users.<span class="pl-c1">find</span>({name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Alexey<span class="pl-pds">'</span></span>}, {limit<span class="pl-k">:</span> <span class="pl-c1">2</span>}, <span class="pl-k">function</span>(<span class="pl-smi">error</span>, <span class="pl-smi">results</span>) {
+users.<span class="pl-c1">find</span>({name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Alexey<span class="pl-pds">'</span></span>}, {limit<span class="pl-k">:</span> <span class="pl-c1">2</span>}).then(<span class="pl-k">function</span>(<span class="pl-smi">res</span>) {
   <span class="pl-c">// Always return array of documents.</span>
-  <span class="pl-en">console</span><span class="pl-c1">.log</span>(results);
+  <span class="pl-en">console</span><span class="pl-c1">.log</span>(res);
 });
 
-users.findById(<span class="pl-s"><span class="pl-pds">'</span>4e4e1638c85e808431000003<span class="pl-pds">'</span></span>, <span class="pl-k">function</span>(<span class="pl-smi">error</span>, <span class="pl-smi">results</span>) {
-  <span class="pl-c">// Returns a document (object). If error occur then returns false.</span>
-  <span class="pl-en">console</span><span class="pl-c1">.log</span>(results);
+users.findById(<span class="pl-s"><span class="pl-pds">'</span>4e4e1638c85e808431000003<span class="pl-pds">'</span></span>).then(<span class="pl-k">function</span>(<span class="pl-smi">res</span>) {
+  <span class="pl-c">// Returns a document (object). If error occurs then will return false.</span>
+  <span class="pl-en">console</span><span class="pl-c1">.log</span>(res);
 });
 
-users.count({name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Alexey<span class="pl-pds">'</span></span>}, <span class="pl-k">function</span>(<span class="pl-smi">error</span>, <span class="pl-smi">results</span>) {
-  <span class="pl-c">// Amount (int). If error occur then returns zero.</span>
-  <span class="pl-en">console</span><span class="pl-c1">.log</span>(results);
+users.count({name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Alexey<span class="pl-pds">'</span></span>}).then(<span class="pl-k">function</span>(<span class="pl-smi">res</span>) {
+  <span class="pl-c">// Amount (int). If error occurs then will return zero.</span>
+  <span class="pl-en">console</span><span class="pl-c1">.log</span>(res);
 });
 
-users.remove({name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Alexey<span class="pl-pds">'</span></span>}, <span class="pl-k">function</span>(<span class="pl-smi">error</span>, <span class="pl-smi">results</span>) {
-  <span class="pl-c">// Returns a result of operation (boolean). If error occur then returns false.</span>
-  <span class="pl-en">console</span><span class="pl-c1">.log</span>(results);
+users.remove({name<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>Alexey<span class="pl-pds">'</span></span>}).then(<span class="pl-k">function</span>(<span class="pl-smi">res</span>) {
+  <span class="pl-c">// Returns a result of operation (boolean). If error occurs then will return false.</span>
+  <span class="pl-en">console</span><span class="pl-c1">.log</span>(res);
 });
 
-users.removeById(<span class="pl-s"><span class="pl-pds">'</span>4e4e1638c85e808431000003<span class="pl-pds">'</span></span>, <span class="pl-k">function</span>(<span class="pl-smi">error</span>, <span class="pl-smi">results</span>) {
-  <span class="pl-c">// Returns a result of operation (boolean). If error occur then returns false.</span>
-  <span class="pl-en">console</span><span class="pl-c1">.log</span>(results);
+users.removeById(<span class="pl-s"><span class="pl-pds">'</span>4e4e1638c85e808431000003<span class="pl-pds">'</span></span>).then(<span class="pl-k">function</span>(<span class="pl-smi">res</span>) {
+  <span class="pl-c">// Returns a result of operation (boolean). If error occurs then will return false.</span>
+  <span class="pl-en">console</span><span class="pl-c1">.log</span>(res);
 });</pre></div>
 
 <h2>
@@ -108,7 +111,7 @@ users.removeById(<span class="pl-s"><span class="pl-pds">'</span>4e4e1638c85e808
 <code>collection(name)</code> — returns a new instance of the easymongo <a href="#collection-class">Collection class</a>
 </li>
 <li>
-<code>open(name[, callback])</code> — returns the <a href="http://mongodb.github.io/node-mongodb-native/api-generated/collection.html">MongoDB Collection</a>
+<code>open(name)</code> — returns a Promise which resolves an object of <a href="http://mongodb.github.io/node-mongodb-native/api-generated/collection.html">MongoDB Collection</a>
 </li>
 <li>
 <code>close()</code> — close the db connection</li>
@@ -121,15 +124,17 @@ users.removeById(<span class="pl-s"><span class="pl-pds">'</span>4e4e1638c85e808
 <a id="methods-1" class="anchor" href="#methods-1" aria-hidden="true"><span class="octicon octicon-link"></span></a>Methods</h4>
 
 <ul>
-<li><code>find([params][, options][, callback])</code></li>
-<li><code>findOne([params][, options][, callback])</code></li>
-<li><code>findById(oid[, fields][, callback])</code></li>
-<li><code>save(data[, callback])</code></li>
-<li><code>update(params, data[, callback])</code></li>
-<li><code>remove([params][, callback])</code></li>
-<li><code>removeById(oid[, callback])</code></li>
-<li><code>count([params][, callback])</code></li>
+<li><code>find([params][, options])</code></li>
+<li><code>findOne([params][, options])</code></li>
+<li><code>findById(oid[, fields])</code></li>
+<li><code>save(data)</code></li>
+<li><code>update(params, data)</code></li>
+<li><code>remove([params])</code></li>
+<li><code>removeById(oid)</code></li>
+<li><code>count([params])</code></li>
 </ul>
+
+<p>All methods return a Promise.</p>
 
 <p>Possible find <code>options</code>:</p>
 
@@ -137,27 +142,18 @@ users.removeById(<span class="pl-s"><span class="pl-pds">'</span>4e4e1638c85e808
 <li>
 <code>limit</code> — to specify the maximum number of documents (<a href="http://docs.mongodb.org/manual/reference/method/cursor.limit/">more info</a>)</li>
 <li>
-<code>skip</code> — to control where MongoDB begins returning results (<a href="http://docs.mongodb.org/manual/reference/method/cursor.skip/">more info</a>)</li>
+<code>skip</code> — to control where MongoDB begins return results (<a href="http://docs.mongodb.org/manual/reference/method/cursor.skip/">more info</a>)</li>
 <li>
-<code>sort</code> — controls the order that the query returns matching documents (<a href="http://docs.mongodb.org/manual/reference/method/cursor.sort/">more info</a>)</li>
+<code>sort</code> — to control the order of matching documents (<a href="http://docs.mongodb.org/manual/reference/method/cursor.sort/">more info</a>)</li>
 <li>
-<code>fields</code> — specify fields array to limit fields in returned documents, e.g. <code>["name", "url"]</code>
+<code>fields</code> — specify array of fields in returned documents, e.g. <code>["name", "url"]</code>
 </li>
 </ul>
 
 <h2>
 <a id="flow-control" class="anchor" href="#flow-control" aria-hidden="true"><span class="octicon octicon-link"></span></a>Flow control</h2>
 
-<p>You can use <code>easymongo</code> with <a href="https://github.com/visionmedia/co">co</a> for generator based flow-control. For these purposes use the <a href="https://github.com/meritt/co-easymongo">co-easymongo</a>.</p>
-
-<h2>
-<a id="contributing" class="anchor" href="#contributing" aria-hidden="true"><span class="octicon octicon-link"></span></a>Contributing</h2>
-
-<p><strong>DO NOT directly modify the <code>lib</code> files.</strong> These files are automatically built from CoffeeScript sources located under the <code>src</code> directory.</p>
-
-<p>To do build run:</p>
-
-<div class="highlight highlight-bash"><pre>$ npm run build</pre></div>
+<p>You can use <code>easymongo</code> with <a href="https://github.com/visionmedia/co">co</a> for promise/generator based flow-control.</p>
 
 <h2>
 <a id="author" class="anchor" href="#author" aria-hidden="true"><span class="octicon octicon-link"></span></a>Author</h2>
