@@ -11,46 +11,47 @@ This is a small tweaks for the [native MongoDB driver](https://github.com/mongod
 ## Installation
 
 ```bash
-$ npm install easymongo
+$ npm i --save easymongo
 ```
 
 ## Examples
 
 ```js
-var easymongo = require('easymongo');
+const Client = require('easymongo');
 
-var mongo = new easymongo({dbname: 'test'});
-var users = mongo.collection('users');
+let mongo = new Client({dbname: 'test'});
+let users = mongo.collection('users');
 
-var data = {name: 'Alexey', surname: 'Simonenko', url: 'http://simonenko.su'};
-users.save(data, function(error, results) {
+let data = {name: 'Alexey', surname: 'Simonenko', url: 'http://simonenko.su'};
+
+users.save(data).then(function(res) {
   // Returns a new document (array).
-  console.log(results);
+  console.log(res);
 });
 
-users.find({name: 'Alexey'}, {limit: 2}, function(error, results) {
+users.find({name: 'Alexey'}, {limit: 2}).then(function(res) {
   // Always return array of documents.
-  console.log(results);
+  console.log(res);
 });
 
-users.findById('4e4e1638c85e808431000003', function(error, results) {
-  // Returns a document (object). If error occur then returns false.
-  console.log(results);
+users.findById('4e4e1638c85e808431000003').then(function(res) {
+  // Returns a document (object). If error occurs then will return false.
+  console.log(res);
 });
 
-users.count({name: 'Alexey'}, function(error, results) {
-  // Amount (int). If error occur then returns zero.
-  console.log(results);
+users.count({name: 'Alexey'}).then(function(res) {
+  // Amount (int). If error occurs then will return zero.
+  console.log(res);
 });
 
-users.remove({name: 'Alexey'}, function(error, results) {
-  // Returns a result of operation (boolean). If error occur then returns false.
-  console.log(results);
+users.remove({name: 'Alexey'}).then(function(res) {
+  // Returns a result of operation (boolean). If error occurs then will return false.
+  console.log(res);
 });
 
-users.removeById('4e4e1638c85e808431000003', function(error, results) {
-  // Returns a result of operation (boolean). If error occur then returns false.
-  console.log(results);
+users.removeById('4e4e1638c85e808431000003').then(function(res) {
+  // Returns a result of operation (boolean). If error occurs then will return false.
+  console.log(res);
 });
 ```
 
@@ -68,42 +69,34 @@ Arguments:
 #### Methods
 
 * `collection(name)` — returns a new instance of the easymongo [Collection class](#collection-class)
-* `open(name[, callback])` — returns the [MongoDB Collection](http://mongodb.github.io/node-mongodb-native/api-generated/collection.html)
+* `open(name)` — returns a Promise which resolves an object of [MongoDB Collection](http://mongodb.github.io/node-mongodb-native/api-generated/collection.html)
 * `close()` — close the db connection
 
 ### Collection class
 
 #### Methods
 
-* `find([params][, options][, callback])`
-* `findOne([params][, options][, callback])`
-* `findById(oid[, fields][, callback])`
-* `save(data[, callback])`
-* `update(params, data[, callback])`
-* `remove([params][, callback])`
-* `removeById(oid[, callback])`
-* `count([params][, callback])`
+* `find([params][, options])`
+* `findOne([params][, options])`
+* `findById(oid[, fields])`
+* `save(data)`
+* `update(params, data)`
+* `remove([params])`
+* `removeById(oid)`
+* `count([params])`
+
+All methods return a Promise.
 
 Possible find `options`:
 
 * `limit` — to specify the maximum number of documents ([more info](http://docs.mongodb.org/manual/reference/method/cursor.limit/))
-* `skip` — to control where MongoDB begins returning results ([more info](http://docs.mongodb.org/manual/reference/method/cursor.skip/))
-* `sort` — controls the order that the query returns matching documents ([more info](http://docs.mongodb.org/manual/reference/method/cursor.sort/))
-* `fields` — specify fields array to limit fields in returned documents, e.g. `["name", "url"]`
+* `skip` — to control where MongoDB begins return results ([more info](http://docs.mongodb.org/manual/reference/method/cursor.skip/))
+* `sort` — to control the order of matching documents ([more info](http://docs.mongodb.org/manual/reference/method/cursor.sort/))
+* `fields` — specify array of fields in returned documents, e.g. `["name", "url"]`
 
 ## Flow control
 
-You can use `easymongo` with [co](https://github.com/visionmedia/co) for generator based flow-control. For these purposes use the [co-easymongo](https://github.com/meritt/co-easymongo).
-
-## Contributing
-
-**DO NOT directly modify the `lib` files.** These files are automatically built from CoffeeScript sources located under the `src` directory.
-
-To do build run:
-
-```bash
-$ npm run build
-```
+You can use `easymongo` with [co](https://github.com/visionmedia/co) for promise/generator based flow-control.
 
 ## Author
 

@@ -1,32 +1,34 @@
-var client = require('..');
+'use strict';
+
+const Client = require('..');
 
 describe('Easymongo constructor', function() {
   it('should throw error if connection url not specified', function() {
-    var poor = [undefined, null, true, false, 10, [], ['10', '20'], function() {}];
+    let poor = [undefined, null, true, false, 10, [], ['10', '20'], function() {}];
 
-    for (var i=0, length=poor.length; i<length; i++) {
+    for (let i = 0, length = poor.length; i < length; i++) {
       (function() {
-        var mongo = new client(poor[i]);
+        new Client(poor[i]);
       }).should.throw('Connection url to mongo must be specified');
     }
   });
 
   it('should set connection url from string', function() {
-    var mongo = new client('mongodb://localhost:27017/test');
-    mongo.url.should.be.eql('mongodb://localhost:27017/test');
+    let mongo = new Client('mongodb://localhost:27017/test');
+
+    mongo.should.have.property('url');
+    mongo.url.should.be.equal('mongodb://localhost:27017/test');
   });
 
   it('should set connection url from object', function() {
-    var mongo;
+    let mongo = new Client({dbname: 'test'});
+    mongo.url.should.be.equal('mongodb://127.0.0.1:27017/test');
 
-    mongo = new client({dbname: 'test'});
-    mongo.url.should.be.eql('mongodb://127.0.0.1:27017/test');
-
-    mongo = new client({host: 'localhost', dbname: 'test'});
-    mongo.url.should.be.eql('mongodb://localhost:27017/test');
+    mongo = new Client({host: 'localhost', dbname: 'test'});
+    mongo.url.should.be.equal('mongodb://localhost:27017/test');
 
     (function() {
-      var mongo = new client({host: 'localhost'});
+      new Client({host: 'localhost'});
     }).should.throw('The db name must be configured (server.dbname)');
   });
 });

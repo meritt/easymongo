@@ -1,172 +1,182 @@
-var should = require('should');
+'use strict';
 
-var client = require('..');
-var mongo = new client({dbname: 'test'});
+const should = require('should');
 
-var collection = 'users';
-var users = mongo.collection(collection);
-var oid = '4e4e1638c85e808431000003';
+const Client = require('..');
+const mongo = new Client({dbname: 'test'});
+
+const collection = 'users';
+const users = mongo.collection(collection);
+const oid = '4e4e1638c85e808431000003';
 
 describe('Easymongo', function() {
-  it('should return false if nothing to remove', function(done) {
-    users.remove(function() {
-      users.remove(function(err, res) {
-        should(err).equal(null);
-        res.should.be.false;
+  it('should return false if nothing to remove', function() {
+    let p = users.remove();
+    p.should.be.a.Promise();
 
-        done();
-      });
+    return p.then(function() {
+      return users.remove();
+    }).then(function(res) {
+      should.exist(res);
+
+      res.should.be.false();
     });
   });
 
-  it('should return false if nothing to remove (removeById)', function(done) {
-    users.removeById(oid, function(err, res) {
-      should(err).equal(null);
-      res.should.be.false;
+  it('should return false if nothing to remove (removeById)', function() {
+    let p = users.removeById(oid);
+    p.should.be.a.Promise();
 
-      done();
+    return p.then(function(res) {
+      should.exist(res);
+
+      res.should.be.false();
     });
   });
 
-  it('should return empty array if nothing found', function(done) {
-    users.find({name: 'Alexey'}, function(err, res) {
-      should(err).equal(null);
+  it('should return empty array if nothing found', function() {
+    let p = users.find({name: 'Alexey'});
+    p.should.be.a.Promise();
+
+    return p.then(function(res) {
+      should.exist(res);
+
       res.should.be.instanceof(Array);
       res.should.have.length(0);
-
-      done();
     });
   });
 
-  it('should return empty array if nothing found (findById)', function(done) {
-    users.findById(oid, function(err, res) {
-      should(err).equal(null);
-      res.should.be.false;
+  it('should return empty array if nothing found (findById)', function() {
+    let p = users.findById(oid);
+    p.should.be.a.Promise();
 
-      done();
+    return p.then(function(res) {
+      should.exist(res);
+
+      res.should.be.false();
     });
   });
 
-  it('should return zero if collection is empty', function(done) {
-    users.count(function(err, res) {
-      should(err).equal(null);
-      res.should.be.eql(0);
+  it('should return zero if collection is empty', function() {
+    let p = users.count();
+    p.should.be.a.Promise();
 
-      done();
+    return p.then(function(res) {
+      should.exist(res);
+
+      res.should.be.equal(0);
     });
   });
 
-  it('should save new documents and count it', function(done) {
-    users.save({name: 'Alexey', url: 'simonenko.su'}, function(err, a) {
-      should(err).equal(null);
-      should(a).be.ok;
+  it('should save new documents and count it', function() {
+    let p = users.save({name: 'Alexey', url: 'simonenko.su'});
+    p.should.be.a.Promise();
 
-      a.should.be.instanceof(Object);
-      a.should.have.property('_id');
-      a.should.have.property('url', 'simonenko.su');
+    return p.then(function(res) {
+      should.exist(res);
 
-      users.save({name: 'Alexey', url: 'chocolatejs.ru'}, function(err, b) {
-        should(err).equal(null);
-        should(b).be.ok;
+      res.should.be.instanceof(Object);
+      res.should.have.property('_id');
+      res.should.have.property('url', 'simonenko.su');
 
-        b.should.be.instanceof(Object);
-        b.should.have.property('_id');
-        b.should.have.property('url', 'chocolatejs.ru');
+      return users.save({name: 'Alexey', url: 'chocolatejs.ru'});
+    }).then(function(res) {
+      should.exist(res);
 
-        users.save({name: 'Alena', url: 'simonenko.su'}, function(err, c) {
-          should(err).equal(null);
-          should(c).be.ok;
+      res.should.be.instanceof(Object);
+      res.should.have.property('_id');
+      res.should.have.property('url', 'chocolatejs.ru');
 
-          c.should.be.instanceof(Object);
-          c.should.have.property('_id');
-          c.should.have.property('url', 'simonenko.su');
+      return users.save({name: 'Alena', url: 'simonenko.su'});
+    }).then(function(res) {
+      should.exist(res);
 
-          users.count(function(err, count) {
-            should(err).equal(null);
-            should(count).be.ok;
+      res.should.be.instanceof(Object);
+      res.should.have.property('_id');
+      res.should.have.property('url', 'simonenko.su');
 
-            count.should.be.eql(3);
+      return users.count();
+    }).then(function(count) {
+      should.exist(count);
 
-            done();
-          });
-        });
-      });
+      count.should.be.equal(3);
     });
   });
 
-  it('should find and remove documents', function(done) {
-    users.find({url: 'simonenko.su'}, function(err, res) {
-      should(err).equal(null);
-      should(res).be.ok;
+  it('should find and remove documents', function() {
+    let p = users.find({url: 'simonenko.su'});
+    p.should.be.a.Promise();
+
+    let aid;
+
+    return p.then(function(res) {
+      should.exist(res);
 
       res.should.be.instanceof(Array);
       res.should.have.length(2);
       res[0].should.have.property('_id');
 
-      var aid = "" + res[0]._id;
-      var bid = "" + res[1]._id;
+      aid = `${res[0]._id}`;
 
-      users.removeById(bid, function(err, res) {
-        should(err).equal(null);
-        res.should.be.true;
+      return users.removeById(`${res[1]._id}`);
+    }).then(function(res) {
+      should.exist(res);
 
-        users.findById(aid, function(err, res) {
-          should(err).equal(null);
-          should(res).be.ok;
+      res.should.be.true();
 
-          res.should.be.instanceof(Object);
-          res.should.have.property('_id');
+      return users.findById(aid);
+    }).then(function(res) {
+      should.exist(res);
 
-          done();
-        });
-      });
+      res.should.be.instanceof(Object);
+      res.should.have.property('_id');
     });
   });
 
-  it('should update document if it already saved', function(done) {
-    users.find(null, {limit: 1}, function(err, res) {
-      should(err).equal(null);
-      should(res).be.ok;
+  it('should update document if it already saved', function() {
+    let p = users.find(null, {limit: 1});
+    p.should.be.a.Promise();
+
+    return p.then(function(res) {
+      should.exist(res);
 
       res.should.be.instanceof(Array);
       res.should.have.length(1);
 
       res[0].name = 'Eva';
 
-      users.save(res[0], function(err, doc) {
-        should(err).equal(null);
-        should(doc).be.ok;
+      return users.save(res[0]);
+    }).then(function(res) {
+      should.exist(res);
 
-        doc.should.be.instanceof(Object);
-        doc.should.have.property('_id');
-        doc.name.should.be.eql('Eva');
+      res.should.be.instanceof(Object);
+      res.should.have.property('_id');
+      res.name.should.be.equal('Eva');
 
-        users.count(function(err, count) {
-          should(err).equal(null);
-          count.should.be.eql(2);
+      return users.count();
+    }).then(function(count) {
+      should.exist(count);
 
-          done();
-        });
-      });
+      count.should.be.equal(2);
     });
   });
 
-  it('should works with id property', function(done) {
-    users.find({id: {$nin: [oid]}}, function(err, res) {
-      should(err).equal(null);
-      should(res).be.ok;
+  it('should works with id property', function() {
+    let p = users.find({id: {$nin: [oid]}});
+    p.should.be.a.Promise();
+
+    return p.then(function(res) {
+      should.exist(res);
 
       res.should.be.instanceof(Array);
       res.should.have.length(2);
-
-      done();
     });
   });
 
   it('should create new ObjectID', function() {
-    var bid = users.oid();
+    let bid = users.oid();
     bid.should.be.instanceof(Object);
-    bid.constructor.name.should.eql('ObjectID');
+    bid.constructor.name.should.equal('ObjectID');
   });
 
   it('should throw error if ObjectID not valid', function() {
@@ -194,57 +204,87 @@ describe('Easymongo', function() {
   });
 
   it('should have db property and can close connection', function() {
-    var res;
-
-    should(mongo.db).be.ok;
+    should.exist(mongo.db);
     mongo.db.should.be.instanceof(Object);
 
-    res = mongo.close();
-    res.should.be.true;
-    should(mongo.db).equal(null);
+    let a = mongo.close();
+    a.should.be.true();
+    should(mongo.db).be.null();
 
-    res = mongo.close();
-    res.should.be.false;
-    should(mongo.db).equal(null);
+    let b = mongo.close();
+    b.should.be.false();
+    should(mongo.db).be.null();
   });
 
-  it('should return collection object for native operations', function(done) {
-    mongo = new client({dbname: 'test'});
+  it('should have db property after open connection', function() {
+    let a;
+    let b;
 
-    mongo.open(collection, function(err, res) {
-      should(err).equal(null);
-      should(res).be.ok;
-      res.should.be.instanceof(Object);
+    const mongo2 = new Client({dbname: 'test'});
 
-      res.should.have.property('insert');
-      res.insert([
-        {test: 'a', name: '1', created: '12:34'},
-        {test: 'b', name: '2', created: '12:34'},
-        {test: 'c', name: '3', created: '12:34'},
-        {test: 'd', name: '4', created: '12:34'},
-        {test: 'e', name: '5', created: '12:34'},
-        {test: 'f', name: '6', created: '12:34'}
-      ], function(err, docs) {
-        should(err).equal(null);
-        should(docs).be.ok;
+    mongo2.should.not.have.property('db');
 
-        should(docs.ops).be.ok;
-        docs.ops.should.be.instanceof(Array);
-        docs.ops.should.have.length(6);
+    a = mongo2.open(collection);
+    a.should.be.a.Promise();
 
-        done();
-      });
+    return a.then(function() {
+      mongo2.should.have.property('db');
+
+      b = mongo2.open(collection);
+      b.should.be.a.Promise();
+
+      return b;
+    }).then(function() {
+      a.should.be.eql(b);
     });
   });
 
-  it('should find documents with advanced options', function(done) {
-    var query = {
+  it('should return collection object for native operations', function() {
+    const mongo2 = new Client({dbname: 'test'});
+
+    let p = mongo2.open(collection);
+    p.should.be.a.Promise();
+
+    return p.then(function(res) {
+      should.exist(res);
+
+      res.should.be.instanceof(Object);
+      res.should.have.property('insert');
+
+      return new Promise(function(resolve, reject) {
+        res.insert([
+          {test: 'a', name: '1', created: '12:34'},
+          {test: 'b', name: '2', created: '12:34'},
+          {test: 'c', name: '3', created: '12:34'},
+          {test: 'd', name: '4', created: '12:34'},
+          {test: 'e', name: '5', created: '12:34'},
+          {test: 'f', name: '6', created: '12:34'}
+        ], function(err, docs) {
+          if (err) {
+            return reject(err.message);
+          }
+
+          resolve(docs);
+        });
+      });
+    }).then(function(res) {
+      should.exist(res);
+
+      res.should.have.property('ops');
+
+      res.ops.should.be.instanceof(Array);
+      res.ops.should.have.length(6);
+    });
+  });
+
+  it('should find documents with advanced options', function() {
+    let query = {
       test: {
         $exists: true
       }
     };
 
-    var options = {
+    let options = {
       limit: 2,
       skip: 2,
       sort: {
@@ -252,148 +292,154 @@ describe('Easymongo', function() {
       }
     };
 
-    users.find(query, options, function(err, res) {
-      should(err).equal(null);
-      should(res).be.ok;
+    let p = users.find(query, options);
+    p.should.be.a.Promise();
+
+    return p.then(function(res) {
+      should.exist(res);
 
       res.should.be.instanceof(Array);
       res.should.have.length(2);
 
-      res[0].test.should.eql('d');
-      res[1].test.should.eql('c');
-
-      done();
+      res[0].test.should.equal('d');
+      res[1].test.should.equal('c');
     });
   });
 
-  it('should find documents and return limited fields', function(done) {
-    var query = {
+  it('should find documents and return limited fields', function() {
+    let query = {
       test: {
         $exists: true
       }
     };
 
-    var options = {
+    let options = {
       fields: [false, {'name': 1}, 'created', 100]
     };
 
-    users.find(query, options, function(err, res) {
-      should(err).equal(null);
-      should(res).be.ok;
+    let p = users.find(query, options);
+    p.should.be.a.Promise();
+
+    return p.then(function(res) {
+      should.exist(res);
 
       res.should.be.instanceof(Array);
       res.should.have.length(6);
 
-      for (var i=0; i<res.length; i++) {
+      for (let i = 0; i < res.length; i++) {
         res[i].should.have.property('_id');
         res[i].should.have.property('created');
         res[i].should.not.have.property('test');
         res[i].should.not.have.property('name');
       }
-
-      done();
     });
   });
 
-  it('should limit fields for findById method', function(done) {
-    var query = {
+  it('should limit fields for findById method', function() {
+    let query = {
       test: {
         $exists: true
       }
     };
 
-    users.find(query, function(err, res) {
-      should(err).equal(null);
-      should(res).be.ok;
+    let p = users.find(query);
+    p.should.be.a.Promise();
 
-      var bid = "" + res[0]._id;
+    return p.then(function(res) {
+      should.exist(res);
 
-      users.findById(bid, [false, {'name': 1}, 'created', 100], function(err, res) {
-        res.should.have.property('_id');
-        res.should.have.property('created');
-        res.should.not.have.property('test');
-        res.should.not.have.property('name');
+      return users.findById(`${res[0]._id}`, [false, {'name': 1}, 'created', 100]);
+    }).then(function(res) {
+      should.exist(res);
 
-        done();
-      });
+      res.should.have.property('_id');
+      res.should.have.property('created');
+      res.should.not.have.property('test');
+      res.should.not.have.property('name');
     });
   });
 
-  it('should find one document', function(done) {
-    var query = {
+  it('should find one document', function() {
+    let query = {
       test: {
         $exists: true
       }
     };
 
-    var options = {
+    let options = {
       fields: ['test', 'name'],
       sort: {
         name: -1
       }
     };
 
-    users.findOne({slug: {$exists: true}}, function(err, res) {
-      should(err).equal(null);
-      should(res).be.false;
+    let p = users.findOne({slug: {$exists: true}});
+    p.should.be.a.Promise();
 
-      users.findOne(query, options, function(err, res) {
-        should(err).equal(null);
-        should(res).be.ok;
+    return p.then(function(res) {
+      res.should.be.false();
 
-        res.should.be.instanceof(Object);
-        res.test.should.eql('f');
-        res.name.should.eql('6');
-        res.should.not.have.property('created');
+      return users.findOne(query, options);
+    }).then(function(res) {
+      should.exist(res);
 
-        done();
-      });
+      res.should.be.instanceof(Object);
+      res.test.should.equal('f');
+      res.name.should.equal('6');
+      res.should.not.have.property('created');
     });
   });
 
-  it('should modify documents with update operators', function(done) {
-    users.find(null, {limit: 3}, function(err, res) {
-      should(err).equal(null);
+  it('should modify documents with update operators', function() {
+    let a;
+    let b;
+    let c;
+
+    let p = users.find(null, {limit: 3});
+    p.should.be.a.Promise();
+
+    return p.then(function(res) {
+      should.exist(res);
+
       res.should.be.instanceof(Array);
       res.should.have.length(3);
 
-      var a = '' + res[0]._id;
-      var b = '' + res[1]._id;
-      var c = '' + res[2]._id;
+      a = `${res[0]._id}`;
+      b = `${res[1]._id}`;
+      c = `${res[2]._id}`;
 
-      var data = {
+      let data = {
         name: 'update fn',
         related: [a, b, c]
       };
 
-      users.save(data, function(error, result) {
-        should(error).equal(null);
-        should(result).be.ok;
+      return users.save(data);
+    }).then(function(res) {
+      should.exist(res);
 
-        result.should.be.instanceof(Object);
-        result.should.have.property('_id');
-        result.should.have.property('related');
-        result.related.should.have.length(3);
-        result.related.should.containEql(b);
+      res.should.be.instanceof(Object);
+      res.should.have.property('_id');
+      res.should.have.property('related');
+      res.related.should.have.length(3);
+      res.related.should.containEql(b);
 
-        users.update({name: 'update fn'}, {$pull: {related: b}}, function(error, result) {
-          should(error).equal(null);
-          result.should.be.true;
+      return users.update({name: 'update fn'}, {$pull: {related: b}});
+    }).then(function(res) {
+      should.exist(res);
 
-          users.find({name: 'update fn'}, function(error, result) {
-            should(error).equal(null);
-            result.should.be.instanceof(Array);
-            result.should.have.length(1);
+      res.should.be.true();
 
-            result[0].should.have.property('related');
-            result[0].related.should.have.length(2);
-            result[0].related.should.containEql(a);
-            result[0].related.should.containEql(c);
+      return users.find({name: 'update fn'});
+    }).then(function(res) {
+      should.exist(res);
 
-            done();
-          });
-        });
-      });
+      res.should.be.instanceof(Array);
+      res.should.have.length(1);
+
+      res[0].should.have.property('related');
+      res[0].related.should.have.length(2);
+      res[0].related.should.containEql(a);
+      res[0].related.should.containEql(c);
     });
   });
 });
