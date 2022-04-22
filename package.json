@@ -21,7 +21,6 @@
   "devDependencies": {
     "coveralls": "^2.11",
     "eslint": "^8.13",
-    "husky": "^0.10.1",
     "istanbul": "^0.3",
     "mocha": "^2.3",
     "should": "^7.1",
@@ -30,10 +29,8 @@
   "scripts": {
     "lint": "eslint .",
     "mocha": "mocha --reporter dot",
-    "pretest": "npm run lint",
-    "test": "npm run mocha",
-    "posttest": "istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R dot && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage",
-    "prepush": "npm run lint"
+    "coverage": "istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R dot && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage",
+    "test": "npm run lint && npm run mocha && npm run mocha coverage"
   },
   "engines": {
     "node": "^4.0.0"
