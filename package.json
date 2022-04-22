@@ -8,7 +8,7 @@
     "mongodb",
     "promise"
   ],
-  "author": "Alexey Simonenko <alexey@simonenko.su>",
+  "author": "Alexey Simonenko <alexey@simonenko.dev>",
   "homepage": "http://simonenko.su/projects/easymongo",
   "main": "./lib/index",
   "repository": {
