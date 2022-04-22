@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "coveralls": "^2.11",
-    "eslint": "1.4.1",
+    "eslint": "^8.13",
     "husky": "^0.10.1",
     "istanbul": "^0.3",
     "mocha": "^2.3",
