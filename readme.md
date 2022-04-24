@@ -3,8 +3,6 @@
 [![NPM version][npm-image]][npm-url]
 [![Build status][travis-image]][travis-url]
 [![Test coverage][coveralls-image]][coveralls-url]
-[![Dependency status][dependency-image]][dependency-url]
-[![devDependency status][devdependency-image]][devdependency-url]
 
 This is a small tweaks for the [native MongoDB driver](https://github.com/mongodb/node-mongodb-native).
 
@@ -114,7 +112,3 @@ The MIT License, see the included `license.md` file.
 [travis-url]: https://travis-ci.org/meritt/easymongo
 [coveralls-image]: https://coveralls.io/repos/meritt/easymongo/badge.svg?branch=master&service=github
 [coveralls-url]: https://coveralls.io/github/meritt/easymongo?branch=master
-[dependency-image]: https://img.shields.io/david/meritt/easymongo.svg?style=flat
-[dependency-url]: https://david-dm.org/meritt/easymongo
-[devdependency-image]: https://img.shields.io/david/dev/meritt/easymongo.svg?style=flat
-[devdependency-url]: https://david-dm.org/meritt/easymongo#info=devDependencies
