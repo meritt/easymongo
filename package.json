@@ -8,19 +8,23 @@
     "mongodb",
     "promise"
   ],
-  "author": "Alexey Simonenko <alexey@simonenko.dev>",
-  "homepage": "http://simonenko.su/projects/easymongo",
-  "main": "./lib/index",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/meritt/easymongo.git"
+  "repository": "meritt/easymongo",
+  "author": {
+    "name": "Alexey Simonenko",
+    "email": "alexey@simonenko.dev",
+    "url": "https://simonenko.xyz"
+  },
+  "type": "module",
+  "exports": "./lib/index.js",
+  "engines": {
+    "node": ">=18.16"
   },
   "dependencies": {
-    "mongodb": "^2.0.42"
+    "mongodb": "^5.6"
   },
   "devDependencies": {
     "coveralls": "^3.1",
-    "eslint": "^8.13",
+    "eslint": "^8.43",
     "istanbul": "^0.4",
     "mocha": "^9.2",
     "should": "^13.2"
@@ -30,9 +34,6 @@
     "mocha": "mocha --reporter dot",
     "coverage": "istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R dot && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage",
     "test": "npm run lint && npm run mocha && npm run mocha coverage"
-  },
-  "engines": {
-    "node": "^4.0.0"
   },
   "license": "MIT"
 }

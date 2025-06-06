@@ -2,9 +2,13 @@
   "extends": "eslint:recommended",
 
   "env": {
-    "es2020": true,
+    "es2022": true,
     "node": true,
     "mocha": true
+  },
+
+  "parserOptions": {
+    "sourceType": "module"
   },
 
   "rules": {
