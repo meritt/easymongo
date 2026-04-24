@@ -1,34 +1,56 @@
-'use strict';
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
 
-// const Client = require('..');
+import { MongoClient } from '../lib/index.js';
 
-describe('Easymongo constructor', function () {
-  // it('should throw error if connection url not specified', function () {
-  //   let poor = [undefined, null, true, false, 10, [], ['10', '20'], function () {}];
+test('throws when no connection target is given', () => {
+  for (const bad of [undefined, null, true, false, 10, [], ['10', '20'], () => {}]) {
+    assert.throws(() => new MongoClient(bad), /Connection url to mongo must be specified/);
+  }
+});
 
-  //   for (let i = 0, length = poor.length; i < length; i++) {
-  //     (function () {
-  //       new Client(poor[i]);
-  //     }).should.throw('Connection url to mongo must be specified');
-  //   }
-  // });
+test('builds a default url from {dbname}', () => {
+  const mongo = new MongoClient({ dbname: 'test' });
+  assert.equal(mongo.url, 'mongodb://127.0.0.1:27017/test');
+});
 
-  // it('should set connection url from string', function () {
-  //   let mongo = new Client('mongodb://localhost:27017/test');
+test('respects host override', () => {
+  const mongo = new MongoClient({ host: 'localhost', dbname: 'test' });
+  assert.equal(mongo.url, 'mongodb://localhost:27017/test');
+});
 
-  //   mongo.should.have.property('url');
-  //   mongo.url.should.be.equal('mongodb://localhost:27017/test');
-  // });
+test('respects port override', () => {
+  const mongo = new MongoClient({ host: 'db.example', port: '27018', dbname: 'test' });
+  assert.equal(mongo.url, 'mongodb://db.example:27018/test');
+});
 
-  // it('should set connection url from object', function () {
-  //   let mongo = new Client({dbname: 'test'});
-  //   mongo.url.should.be.equal('mongodb://127.0.0.1:27017/test');
+test('throws when dbname is missing in object form', () => {
+  assert.throws(() => new MongoClient({ host: 'localhost' }), /db name must be configured/);
+});
 
-  //   mongo = new Client({host: 'localhost', dbname: 'test'});
-  //   mongo.url.should.be.equal('mongodb://localhost:27017/test');
+test('accepts a raw connection string', () => {
+  const url = 'mongodb://example.com:27017/myapp';
+  const mongo = new MongoClient(url);
+  assert.equal(mongo.url, url);
+});
 
-  //   (function () {
-  //     new Client({host: 'localhost'});
-  //   }).should.throw('The db name must be configured (server.dbname)');
-  // });
+
+test('observability defaults: not silent, no onError', () => {
+  const mongo = new MongoClient({ dbname: 'test' });
+  assert.equal(mongo.silent, false);
+  assert.equal(mongo.onError, null);
+});
+
+test('observability options are picked up', () => {
+  const onError = () => {};
+  const mongo = new MongoClient({ dbname: 'test' }, { silent: true, onError });
+  assert.equal(mongo.silent, true);
+  assert.equal(mongo.onError, onError);
+});
+
+test('wrapper options are stripped from driverOptions', () => {
+  const mongo = new MongoClient({ dbname: 'test' }, { silent: true, onError: () => {}, maxPoolSize: 10 });
+  assert.equal(mongo.driverOptions.silent, undefined);
+  assert.equal(mongo.driverOptions.onError, undefined);
+  assert.equal(mongo.driverOptions.maxPoolSize, 10);
 });
