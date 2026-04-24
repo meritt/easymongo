@@ -55,6 +55,39 @@ test('prepare: id alias is rewritten to _id', () => {
   assert.equal(out.name, 'Alexey');
 });
 
+test('prepare: _id: undefined with id alias uses id', () => {
+  const out = prepare({ _id: undefined, id: HEX });
+  assert.ok(out._id instanceof ObjectId);
+  assert.equal(out._id.toString(), HEX);
+  assert.equal(out.id, undefined);
+});
+
+test('prepare: _id: null with id alias uses id', () => {
+  const out = prepare({ _id: null, id: HEX });
+  assert.ok(out._id instanceof ObjectId);
+  assert.equal(out._id.toString(), HEX);
+  assert.equal(out.id, undefined);
+});
+
+test('prepare: _id wins over id collision; stale id is removed', () => {
+  const out = prepare({ _id: HEX, id: 'stale' });
+  assert.ok(out._id instanceof ObjectId);
+  assert.equal(out._id.toString(), HEX);
+  assert.equal(out.id, undefined);
+});
+
+test('prepare: _id: undefined alone passes through without random ObjectId', () => {
+  const out = prepare({ _id: undefined, name: 'x' });
+  assert.equal(out._id, undefined);
+  assert.equal(out.name, 'x');
+});
+
+test('prepare: _id: null alone is preserved as literal', () => {
+  const out = prepare({ _id: null, name: 'x' });
+  assert.equal(out._id, null);
+  assert.equal(out.name, 'x');
+});
+
 test('prepare: string _id becomes ObjectId', () => {
   const out = prepare({ _id: HEX });
   assert.ok(out._id instanceof ObjectId);
