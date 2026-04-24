@@ -1,7 +1,7 @@
 {
   "name": "easymongo",
   "version": "6.0.0",
-  "description": "Simple interface for the MongoDB API",
+  "description": "Thin, opinionated wrapper around the MongoDB Node.js driver with a fail-silent promise API.",
   "keywords": [
     "easymongo",
     "mongo",
