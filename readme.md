@@ -2,13 +2,14 @@
 
 [![NPM version][npm-image]][npm-url]
 [![Build status][github-actions-image]][github-actions-url]
+[![Coverage status][coveralls-image]][coveralls-url]
 [![Dependency status][libraries-image]][libraries-url]
 
 A thin, opinionated wrapper around the official MongoDB Node.js driver. Every public method returns a promise with a fixed resolved type; driver errors are swallowed and replaced with the empty default (`null`, `false`, `[]`, or `0`).
 
 ## Requirements
 
-- Node.js ≥ 24.15
+- Node.js ≥ 24.14
 - MongoDB server 7.0, 8.0, or 8.2
 
 ## Installation
@@ -143,5 +144,7 @@ MIT. See `LICENSE`.
 [npm-url]: https://www.npmjs.com/package/easymongo
 [github-actions-image]: https://github.com/meritt/easymongo/actions/workflows/ci.yml/badge.svg
 [github-actions-url]: https://github.com/meritt/easymongo/actions/workflows/ci.yml
+[coveralls-image]: https://coveralls.io/repos/github/meritt/easymongo/badge.svg?branch=main
+[coveralls-url]: https://coveralls.io/github/meritt/easymongo?branch=main
 [libraries-image]: https://img.shields.io/librariesio/release/npm/easymongo.svg?style=flat
 [libraries-url]: https://libraries.io/npm/easymongo

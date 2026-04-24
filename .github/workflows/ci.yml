@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, v6]
+    branches: [main]
   pull_request:
-    branches: [main, v6]
+    branches: [main]
 
 permissions:
   contents: read
@@ -56,10 +56,9 @@ jobs:
         if: matrix.node-version == '24.x' && matrix.mongo-version == '8.2'
         run: pnpm coverage
 
-      - name: Upload coverage artifact
+      - name: Upload coverage to Coveralls
         if: matrix.node-version == '24.x' && matrix.mongo-version == '8.2'
-        uses: actions/upload-artifact@v4
+        uses: coverallsapp/github-action@v2
         with:
-          name: coverage-lcov
-          path: coverage/lcov.info
-          if-no-files-found: error
+          file: coverage/lcov.info
+          format: lcov
