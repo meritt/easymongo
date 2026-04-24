@@ -1,5 +1,8 @@
+._*
+.DS_Store
+*.local.*
+.worktrees/
 node_modules/
 coverage/
 *.log
-.DS_Store
-todo.md
+plan/
