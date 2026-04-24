@@ -1,445 +1,382 @@
-'use strict';
+import { describe, test, before, after, beforeEach } from 'node:test';
+import { randomUUID } from 'node:crypto';
+import assert from 'node:assert/strict';
 
-const should = require('should');
+import { ObjectId } from 'mongodb';
+import { MongoClient } from '../lib/index.js';
 
-const Client = require('..');
-const mongo = new Client({dbname: 'test'});
+const COLLECTION = `easymongo_test_${randomUUID()}`;
+const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
+const users = mongo.collection(COLLECTION);
 
-const collection = 'users';
-const users = mongo.collection(collection);
-const oid = '4e4e1638c85e808431000003';
+before(async () => {
+  await users.remove({});
+});
 
-describe('Easymongo', function() {
-  it('should return false if nothing to remove', function() {
-    let p = users.remove();
-    p.should.be.a.Promise();
+after(async () => {
+  await users.remove({});
+  await mongo.close();
+});
 
-    return p.then(function() {
-      return users.remove();
-    }).then(function(res) {
-      should.exist(res);
+beforeEach(async () => {
+  await users.remove({});
+});
 
-      res.should.be.false();
+describe('count', () => {
+  test('0 on an empty collection', async () => {
+    assert.equal(await users.count(), 0);
+  });
+
+  test('respects a query', async () => {
+    await users.saveAll([
+      { name: 'Alexey' },
+      { name: 'Alena' },
+      { name: 'Alexey' }
+    ]);
+    assert.equal(await users.count(), 3);
+    assert.equal(await users.count({ name: 'Alexey' }), 2);
+  });
+});
+
+describe('find', () => {
+  test('empty array when nothing matches', async () => {
+    const result = await users.find({ name: 'Nobody' });
+    assert.deepEqual(result, []);
+  });
+
+  test('returns all docs with no query', async () => {
+    await users.saveAll([{ a: 1 }, { a: 2 }, { a: 3 }]);
+    const result = await users.find();
+    assert.equal(result.length, 3);
+  });
+});
+
+describe('findOne', () => {
+  test('null when nothing matches', async () => {
+    const result = await users.findOne({ name: 'Nobody' });
+    assert.equal(result, null);
+  });
+
+  test('returns matching doc', async () => {
+    await users.save({ name: 'Alexey' });
+    const result = await users.findOne({ name: 'Alexey' });
+    assert.ok(result);
+    assert.equal(result.name, 'Alexey');
+    assert.ok(result._id instanceof ObjectId);
+  });
+});
+
+describe('findById', () => {
+  test('null when not found', async () => {
+    const result = await users.findById('4e4e1638c85e808431000003');
+    assert.equal(result, null);
+  });
+
+  test('accepts string id', async () => {
+    const saved = await users.save({ name: 'Alexey' });
+    const result = await users.findById(saved._id.toString());
+    assert.ok(result);
+    assert.equal(result.name, 'Alexey');
+  });
+
+  test('accepts ObjectId', async () => {
+    const saved = await users.save({ name: 'Alena' });
+    const result = await users.findById(saved._id);
+    assert.ok(result);
+    assert.equal(result.name, 'Alena');
+  });
+
+  test('accepts fields as second positional argument', async () => {
+    const created = await users.save({ name: 'Alexey', secret: 'shh' });
+    const result = await users.findById(created._id, ['name']);
+    assert.ok(result);
+    assert.equal(result.name, 'Alexey');
+    assert.equal(result.secret, undefined);
+  });
+});
+
+describe('exists', () => {
+  test('false on empty', async () => {
+    assert.equal(await users.exists({ name: 'Nobody' }), false);
+  });
+
+  test('true when at least one matches', async () => {
+    await users.save({ name: 'Alexey' });
+    assert.equal(await users.exists({ name: 'Alexey' }), true);
+  });
+});
+
+describe('distinct', () => {
+  test('returns unique values', async () => {
+    await users.saveAll([{ tag: 'a' }, { tag: 'b' }, { tag: 'a' }, { tag: 'c' }]);
+    const result = await users.distinct('tag');
+    assert.equal(result.length, 3);
+    assert.deepEqual(result.sort(), ['a', 'b', 'c']);
+  });
+
+  test('respects query', async () => {
+    await users.saveAll([{ tag: 'a', g: 1 }, { tag: 'b', g: 1 }, { tag: 'c', g: 2 }]);
+    const result = await users.distinct('tag', { g: 1 });
+    assert.deepEqual(result.sort(), ['a', 'b']);
+  });
+});
+
+describe('save', () => {
+  test('inserts and returns doc with _id', async () => {
+    const result = await users.save({ name: 'Alexey', url: 'simonenko.xyz' });
+    assert.ok(result);
+    assert.ok(result._id instanceof ObjectId);
+    assert.equal(result.name, 'Alexey');
+    assert.equal(result.url, 'simonenko.xyz');
+  });
+
+  test('replaces when _id is set', async () => {
+    const created = await users.save({ name: 'Alexey' });
+    const updated = await users.save({ _id: created._id, name: 'Alena' });
+    assert.ok(updated);
+    assert.equal(updated.name, 'Alena');
+    assert.equal(await users.count(), 1);
+  });
+
+  test('returns null on non-object input', async () => {
+    assert.equal(await users.save(null), null);
+    assert.equal(await users.save('not a doc'), null);
+    assert.equal(await users.save(42), null);
+  });
+});
+
+describe('saveAll', () => {
+  test('returns docs with _id', async () => {
+    const result = await users.saveAll([{ n: 1 }, { n: 2 }, { n: 3 }]);
+    assert.equal(result.length, 3);
+    for (const doc of result) {
+      assert.ok(doc._id instanceof ObjectId);
+    }
+  });
+
+  test('empty array passes through as []', async () => {
+    assert.deepEqual(await users.saveAll([]), []);
+    assert.deepEqual(await users.saveAll(null), []);
+  });
+});
+
+describe('update', () => {
+  test('false when nothing matched', async () => {
+    assert.equal(await users.update({ name: 'Nobody' }, { $set: { url: 'x' } }), false);
+  });
+
+  test('true when at least one document modified', async () => {
+    await users.saveAll([{ name: 'Alexey' }, { name: 'Alexey' }]);
+    const ok = await users.update({ name: 'Alexey' }, { $set: { url: 'simonenko.xyz' } });
+    assert.equal(ok, true);
+    const all = await users.find({ name: 'Alexey' });
+    for (const doc of all) {
+      assert.equal(doc.url, 'simonenko.xyz');
+    }
+  });
+});
+
+describe('remove', () => {
+  test('false when nothing to remove', async () => {
+    assert.equal(await users.remove({ name: 'Nobody' }), false);
+  });
+
+  test('true when something removed', async () => {
+    await users.save({ name: 'Alexey' });
+    assert.equal(await users.remove({ name: 'Alexey' }), true);
+    assert.equal(await users.count(), 0);
+  });
+});
+
+describe('removeById', () => {
+  test('false when id not present', async () => {
+    assert.equal(await users.removeById('4e4e1638c85e808431000003'), false);
+  });
+
+  test('accepts string id', async () => {
+    const created = await users.save({ name: 'Alexey' });
+    assert.equal(await users.removeById(created._id.toString()), true);
+    assert.equal(await users.count(), 0);
+  });
+
+  test('accepts ObjectId', async () => {
+    const created = await users.save({ name: 'Alexey' });
+    assert.equal(await users.removeById(created._id), true);
+  });
+});
+
+describe('query preparation', () => {
+  test('id alias: query with {id: ...} works', async () => {
+    const created = await users.save({ name: 'Alexey' });
+    const found = await users.findOne({ id: created._id.toString() });
+    assert.ok(found);
+    assert.equal(found.name, 'Alexey');
+  });
+
+  test('$in coercion: string ids in $in match', async () => {
+    const a = await users.save({ name: 'A' });
+    const b = await users.save({ name: 'B' });
+    await users.save({ name: 'C' });
+
+    const result = await users.find({ _id: { $in: [a._id.toString(), b._id.toString()] } });
+    assert.equal(result.length, 2);
+  });
+
+  test('$nin coercion: string ids in $nin exclude', async () => {
+    const a = await users.save({ name: 'A' });
+    await users.save({ name: 'B' });
+    await users.save({ name: 'C' });
+
+    const result = await users.find({ _id: { $nin: [a._id.toString()] } });
+    assert.equal(result.length, 2);
+  });
+});
+
+describe('read options', () => {
+  test('fields as array → projection whitelist', async () => {
+    await users.save({ name: 'Alexey', url: 'simonenko.xyz', secret: 'shh' });
+    const result = await users.find({}, { fields: ['name', 'url'] });
+    assert.equal(result.length, 1);
+    assert.equal(result[0].name, 'Alexey');
+    assert.equal(result[0].url, 'simonenko.xyz');
+    assert.equal(result[0].secret, undefined);
+  });
+
+  test('fields as object → projection passthrough (exclusion)', async () => {
+    await users.save({ name: 'Alexey', secret: 'shh' });
+    const result = await users.find({}, { fields: { secret: 0 } });
+    assert.equal(result[0].name, 'Alexey');
+    assert.equal(result[0].secret, undefined);
+  });
+
+  test('projection is a synonym for fields', async () => {
+    await users.save({ name: 'Alexey', url: 'simonenko.xyz', secret: 'shh' });
+    const result = await users.find({}, { projection: { name: 1 } });
+    assert.equal(result[0].name, 'Alexey');
+    assert.equal(result[0].url, undefined);
+  });
+
+  test('limit, skip, sort all work together', async () => {
+    await users.saveAll([
+      { name: 'A', n: 1 },
+      { name: 'B', n: 2 },
+      { name: 'C', n: 3 },
+      { name: 'D', n: 4 },
+      { name: 'E', n: 5 }
+    ]);
+    const result = await users.find({}, { limit: 2, skip: 1, sort: { n: 1 } });
+    assert.equal(result.length, 2);
+    assert.equal(result[0].n, 2);
+    assert.equal(result[1].n, 3);
+  });
+});
+
+describe('oid', () => {
+  test('new ObjectId without args', () => {
+    const oid = users.oid();
+    assert.ok(oid instanceof ObjectId);
+  });
+
+  test('coerces string', () => {
+    const oid = users.oid('4e4e1638c85e808431000003');
+    assert.ok(oid instanceof ObjectId);
+    assert.equal(oid.toString(), '4e4e1638c85e808431000003');
+  });
+});
+
+describe('connection lifecycle', () => {
+  test('reuses the same native collection across calls', async () => {
+    await users.count();
+    const first = mongo._cols.get(COLLECTION);
+    await users.count();
+    const second = mongo._cols.get(COLLECTION);
+    assert.equal(first, second);
+  });
+
+  test('close() then reuse: old Collection wrapper reconnects cleanly', async () => {
+    const client = new MongoClient({ dbname: 'test' }, { silent: true });
+    const col = client.collection(`easymongo_test_${randomUUID()}`);
+
+    await col.save({ name: 'before' });
+    assert.equal(await col.count(), 1);
+
+    await client.close();
+
+    const found = await col.findOne({ name: 'before' });
+    assert.ok(found);
+    assert.equal(found.name, 'before');
+
+    await col.remove({});
+    await client.close();
+  });
+});
+
+describe('saveAll partial recovery', () => {
+  test('middle conflict: returns only inserted subset', async () => {
+    const first = await users.save({ name: 'X' });
+
+    const captured = [];
+    const local = new MongoClient({ dbname: 'test' }, {
+      onError: (err, ctx) => captured.push({ err, ctx })
     });
+    const localUsers = local.collection(COLLECTION);
+
+    const result = await localUsers.saveAll([
+      { name: 'A' },
+      { _id: first._id, name: 'X-dupe' },
+      { name: 'B' }
+    ]);
+
+    assert.equal(result.length, 2);
+    const names = result.map((d) => d.name).sort();
+    assert.deepEqual(names, ['A', 'B']);
+    for (const doc of result) {
+      assert.ok(doc._id instanceof ObjectId);
+    }
+
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].ctx.method, 'saveAll');
+    assert.equal(captured[0].ctx.collection, COLLECTION);
+
+    await local.close();
   });
 
-  it('should return false if nothing to remove (removeById)', function() {
-    let p = users.removeById(oid);
-    p.should.be.a.Promise();
+  test('all conflict: returns []', async () => {
+    const a = await users.save({ name: 'A' });
+    const b = await users.save({ name: 'B' });
 
-    return p.then(function(res) {
-      should.exist(res);
+    const result = await users.saveAll([
+      { _id: a._id, name: 'A-dupe' },
+      { _id: b._id, name: 'B-dupe' }
+    ]);
 
-      res.should.be.false();
-    });
+    assert.deepEqual(result, []);
   });
 
-  it('should return empty array if nothing found', function() {
-    let p = users.find({name: 'Alexey'});
-    p.should.be.a.Promise();
-
-    return p.then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Array);
-      res.should.have.length(0);
-    });
+  test('connection error returns []', async () => {
+    const unreachable = new MongoClient(
+      'mongodb://127.0.0.1:1/test?serverSelectionTimeoutMS=300',
+      { silent: true }
+    );
+    const result = await unreachable.collection('anything').saveAll([
+      { name: 'A' },
+      { name: 'B' }
+    ]);
+    assert.deepEqual(result, []);
+    await unreachable.close();
   });
 
-  it('should return empty array if nothing found (findById)', function() {
-    let p = users.findById(oid);
-    p.should.be.a.Promise();
-
-    return p.then(function(res) {
-      should.exist(res);
-
-      res.should.be.false();
-    });
-  });
-
-  it('should return zero if collection is empty', function() {
-    let p = users.count();
-    p.should.be.a.Promise();
-
-    return p.then(function(res) {
-      should.exist(res);
-
-      res.should.be.equal(0);
-    });
-  });
-
-  it('should save new documents and count it', function() {
-    let p = users.save({name: 'Alexey', url: 'simonenko.su'});
-    p.should.be.a.Promise();
-
-    return p.then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Object);
-      res.should.have.property('_id');
-      res.should.have.property('url', 'simonenko.su');
-
-      return users.save({name: 'Alexey', url: 'chocolatejs.ru'});
-    }).then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Object);
-      res.should.have.property('_id');
-      res.should.have.property('url', 'chocolatejs.ru');
-
-      return users.save({name: 'Alena', url: 'simonenko.su'});
-    }).then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Object);
-      res.should.have.property('_id');
-      res.should.have.property('url', 'simonenko.su');
-
-      return users.count();
-    }).then(function(count) {
-      should.exist(count);
-
-      count.should.be.equal(3);
-    });
-  });
-
-  it('should find and remove documents', function() {
-    let p = users.find({url: 'simonenko.su'});
-    p.should.be.a.Promise();
-
-    let aid;
-
-    return p.then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Array);
-      res.should.have.length(2);
-      res[0].should.have.property('_id');
-
-      aid = `${res[0]._id}`;
-
-      return users.removeById(`${res[1]._id}`);
-    }).then(function(res) {
-      should.exist(res);
-
-      res.should.be.true();
-
-      return users.findById(aid);
-    }).then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Object);
-      res.should.have.property('_id');
-    });
-  });
-
-  it('should update document if it already saved', function() {
-    let p = users.find(null, {limit: 1});
-    p.should.be.a.Promise();
-
-    return p.then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Array);
-      res.should.have.length(1);
-
-      res[0].name = 'Eva';
-
-      return users.save(res[0]);
-    }).then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Object);
-      res.should.have.property('_id');
-      res.name.should.be.equal('Eva');
-
-      return users.count();
-    }).then(function(count) {
-      should.exist(count);
-
-      count.should.be.equal(2);
-    });
-  });
-
-  it('should works with id property', function() {
-    let p = users.find({id: {$nin: [oid]}});
-    p.should.be.a.Promise();
-
-    return p.then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Array);
-      res.should.have.length(2);
-    });
-  });
-
-  it('should create new ObjectID', function() {
-    let bid = users.oid();
-    bid.should.be.instanceof(Object);
-    bid.constructor.name.should.equal('ObjectID');
-  });
-
-  it('should throw error if ObjectID not valid', function() {
-    (function() {
-      users.oid('test object id');
-    }).should.throw();
-  });
-
-  it('should throw error if ObjectID not valid in params', function() {
-    (function() {
-      users.prepare({'_id': 'test object id'});
-    }).should.throw();
-
-    (function() {
-      users.prepare({'id': 'test object id'});
-    }).should.throw();
-
-    (function() {
-      users.prepare({'_id': {$in: [oid, 'test object id', oid]}});
-    }).should.throw();
-
-    (function() {
-      users.prepare({'id': {$nin: [oid, 'test object id', oid]}});
-    }).should.throw();
-  });
-
-  it('should have db property and can close connection', function() {
-    should.exist(mongo.db);
-    mongo.db.should.be.instanceof(Object);
-
-    let a = mongo.close();
-    a.should.be.true();
-    should(mongo.db).be.null();
-
-    let b = mongo.close();
-    b.should.be.false();
-    should(mongo.db).be.null();
-  });
-
-  it('should have db property after open connection', function() {
-    let a;
-    let b;
-
-    const mongo2 = new Client({dbname: 'test'});
-
-    mongo2.should.not.have.property('db');
-
-    a = mongo2.open(collection);
-    a.should.be.a.Promise();
-
-    return a.then(function() {
-      mongo2.should.have.property('db');
-
-      b = mongo2.open(collection);
-      b.should.be.a.Promise();
-
-      return b;
-    }).then(function() {
-      a.should.be.eql(b);
-    });
-  });
-
-  it('should return collection object for native operations', function() {
-    const mongo2 = new Client({dbname: 'test'});
-
-    let p = mongo2.open(collection);
-    p.should.be.a.Promise();
-
-    return p.then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Object);
-      res.should.have.property('insert');
-
-      return new Promise(function(resolve, reject) {
-        res.insert([
-          {test: 'a', name: '1', created: '12:34'},
-          {test: 'b', name: '2', created: '12:34'},
-          {test: 'c', name: '3', created: '12:34'},
-          {test: 'd', name: '4', created: '12:34'},
-          {test: 'e', name: '5', created: '12:34'},
-          {test: 'f', name: '6', created: '12:34'}
-        ], function(err, docs) {
-          if (err) {
-            return reject(err.message);
-          }
-
-          resolve(docs);
-        });
-      });
-    }).then(function(res) {
-      should.exist(res);
-
-      res.should.have.property('ops');
-
-      res.ops.should.be.instanceof(Array);
-      res.ops.should.have.length(6);
-    });
-  });
-
-  it('should find documents with advanced options', function() {
-    let query = {
-      test: {
-        $exists: true
-      }
-    };
-
-    let options = {
-      limit: 2,
-      skip: 2,
-      sort: {
-        test: -1
-      }
-    };
-
-    let p = users.find(query, options);
-    p.should.be.a.Promise();
-
-    return p.then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Array);
-      res.should.have.length(2);
-
-      res[0].test.should.equal('d');
-      res[1].test.should.equal('c');
-    });
-  });
-
-  it('should find documents and return limited fields', function() {
-    let query = {
-      test: {
-        $exists: true
-      }
-    };
-
-    let options = {
-      fields: [false, {'name': 1}, 'created', 100]
-    };
-
-    let p = users.find(query, options);
-    p.should.be.a.Promise();
-
-    return p.then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Array);
-      res.should.have.length(6);
-
-      for (let i = 0; i < res.length; i++) {
-        res[i].should.have.property('_id');
-        res[i].should.have.property('created');
-        res[i].should.not.have.property('test');
-        res[i].should.not.have.property('name');
-      }
-    });
-  });
-
-  it('should limit fields for findById method', function() {
-    let query = {
-      test: {
-        $exists: true
-      }
-    };
-
-    let p = users.find(query);
-    p.should.be.a.Promise();
-
-    return p.then(function(res) {
-      should.exist(res);
-
-      return users.findById(`${res[0]._id}`, [false, {'name': 1}, 'created', 100]);
-    }).then(function(res) {
-      should.exist(res);
-
-      res.should.have.property('_id');
-      res.should.have.property('created');
-      res.should.not.have.property('test');
-      res.should.not.have.property('name');
-    });
-  });
-
-  it('should find one document', function() {
-    let query = {
-      test: {
-        $exists: true
-      }
-    };
-
-    let options = {
-      fields: ['test', 'name'],
-      sort: {
-        name: -1
-      }
-    };
-
-    let p = users.findOne({slug: {$exists: true}});
-    p.should.be.a.Promise();
-
-    return p.then(function(res) {
-      res.should.be.false();
-
-      return users.findOne(query, options);
-    }).then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Object);
-      res.test.should.equal('f');
-      res.name.should.equal('6');
-      res.should.not.have.property('created');
-    });
-  });
-
-  it('should modify documents with update operators', function() {
-    let a;
-    let b;
-    let c;
-
-    let p = users.find(null, {limit: 3});
-    p.should.be.a.Promise();
-
-    return p.then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Array);
-      res.should.have.length(3);
-
-      a = `${res[0]._id}`;
-      b = `${res[1]._id}`;
-      c = `${res[2]._id}`;
-
-      let data = {
-        name: 'update fn',
-        related: [a, b, c]
-      };
-
-      return users.save(data);
-    }).then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Object);
-      res.should.have.property('_id');
-      res.should.have.property('related');
-      res.related.should.have.length(3);
-      res.related.should.containEql(b);
-
-      return users.update({name: 'update fn'}, {$pull: {related: b}});
-    }).then(function(res) {
-      should.exist(res);
-
-      res.should.be.true();
-
-      return users.find({name: 'update fn'});
-    }).then(function(res) {
-      should.exist(res);
-
-      res.should.be.instanceof(Array);
-      res.should.have.length(1);
-
-      res[0].should.have.property('related');
-      res[0].related.should.have.length(2);
-      res[0].related.should.containEql(a);
-      res[0].related.should.containEql(c);
-    });
+  test('happy path: all docs inserted unchanged', async () => {
+    const result = await users.saveAll([
+      { name: 'H1' },
+      { name: 'H2' },
+      { name: 'H3' }
+    ]);
+    assert.equal(result.length, 3);
+    const names = result.map((d) => d.name).sort();
+    assert.deepEqual(names, ['H1', 'H2', 'H3']);
+    for (const doc of result) {
+      assert.ok(doc._id instanceof ObjectId);
+    }
   });
 });
