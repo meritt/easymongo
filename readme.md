@@ -63,12 +63,12 @@ new MongoClient(server, options?)
 | Method | Resolves to | Empty default |
 | --- | --- | --- |
 | `find(query?, options?)` | `doc[]` | `[]` |
-| `findOne(query?, options?)` | `doc | null` | `null` |
-| `findById(id, fields?)` | `doc | null` | `null` |
+| `findOne(query?, options?)` | `doc \| null` | `null` |
+| `findById(id, fields?)` | `doc \| null` | `null` |
 | `exists(query?)` | `boolean` | `false` |
 | `count(query?)` | `number` | `0` |
 | `distinct(field, query?)` | `any[]` | `[]` |
-| `save(doc)` | `doc | null` | `null` |
+| `save(doc)` | `doc \| null` | `null` |
 | `saveAll(docs)` | `doc[]` | `[]` |
 | `update(query, $update)` | `boolean` | `false` |
 | `remove(query)` | `boolean` | `false` |
