@@ -119,6 +119,79 @@ test('silent: true also suppresses the default console.error path', async (t) =>
   await mongo.close();
 });
 
+test('broken console.error: find still returns [] without throwing', async (t) => {
+  t.mock.method(console, 'error', () => {
+    throw new Error('console hostile');
+  });
+  const mongo = new MongoClient(UNREACHABLE);
+  let threw = null;
+  let result;
+  try {
+    result = await mongo.collection('users').find({});
+  } catch (err) {
+    threw = err;
+  }
+  assert.equal(threw, null, 'fail-silent contract violated');
+  assert.deepEqual(result, []);
+  await mongo.close();
+});
+
+test('broken console.error: every public method returns its empty default', async (t) => {
+  t.mock.method(console, 'error', () => {
+    throw new Error('console hostile');
+  });
+  const mongo = new MongoClient(UNREACHABLE);
+  const col = mongo.collection('users');
+  const survey = {};
+  async function run(label, fn, expectedDefault) {
+    let threw = null;
+    let value;
+    try {
+      value = await fn();
+    } catch (err) {
+      threw = err.message;
+    }
+    survey[label] = {
+      threw,
+      gotDefault:
+        !threw && JSON.stringify(value) === JSON.stringify(expectedDefault)
+    };
+  }
+  await run('find', () => col.find({}), []);
+  await run('findOne', () => col.findOne({}), null);
+  await run('exists', () => col.exists({}), false);
+  await run('count', () => col.count({ name: 'x' }), 0);
+  await run('distinct', () => col.distinct('x', {}), []);
+  await run('save', () => col.save({ a: 1 }), null);
+  await run('saveAll', () => col.saveAll([{ a: 1 }]), []);
+  await run('update', () => col.update({ a: 1 }, { $set: { b: 1 } }), false);
+  await run('remove', () => col.remove({ a: 1 }), false);
+  await run(
+    'removeById',
+    () => col.removeById('507f1f77bcf86cd799439011'),
+    false
+  );
+  await run('createIndex', () => col.createIndex({ a: 1 }), null);
+  await run(
+    'each',
+    async () => {
+      const out = [];
+      for await (const doc of col.each({})) out.push(doc);
+      return out;
+    },
+    []
+  );
+  const broken = Object.entries(survey).filter(
+    ([, v]) => v.threw || !v.gotDefault
+  );
+  assert.equal(
+    broken.length,
+    0,
+    `methods broken: ${broken.map(([k, v]) => `${k}(${v.threw ?? 'wrong-default'})`).join(', ')}`
+  );
+  await mongo.close();
+});
+
 test('onError: receives ctx with method/collection/query', async () => {
   const captured = [];
   const mongo = new MongoClient(UNREACHABLE, {
