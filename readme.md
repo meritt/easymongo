@@ -27,7 +27,10 @@ import { MongoClient } from 'easymongo';
 const mongo = new MongoClient({ dbname: 'app' });
 const users = mongo.collection('users');
 
-const alexey = await users.save({ name: 'Alexey', url: 'https://simonenko.xyz' });
+const alexey = await users.save({
+  name: 'Alexey',
+  url: 'https://simonenko.xyz'
+});
 // { _id: ObjectId(...), name: 'Alexey', url: 'https://simonenko.xyz' }
 
 const results = await users.find({ name: 'Alexey' }, { limit: 10 });
@@ -51,29 +54,29 @@ new MongoClient(server, options?)
 
 `options` is optional and is forwarded to the underlying driver. Two keys are reserved for the wrapper:
 
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `silent` | `false` | Suppress all internal error reporting |
+| Key       | Default         | Meaning                                                       |
+| --------- | --------------- | ------------------------------------------------------------- |
+| `silent`  | `false`         | Suppress all internal error reporting                         |
 | `onError` | `console.error` | `(err, ctx) => void`, `ctx = { method, collection?, query? }` |
 
 `client.collection(name)` returns a `Collection`. `client.close()` releases the connection and is safe to call more than once.
 
 ## Collection methods
 
-| Method | Resolves to | Empty default |
-| --- | --- | --- |
-| `find(query?, options?)` | `doc[]` | `[]` |
-| `findOne(query?, options?)` | `doc \| null` | `null` |
-| `findById(id, fields?)` | `doc \| null` | `null` |
-| `exists(query?)` | `boolean` | `false` |
-| `count(query?)` | `number` | `0` |
-| `distinct(field, query?)` | `any[]` | `[]` |
-| `save(doc)` | `doc \| null` | `null` |
-| `saveAll(docs)` | `doc[]` | `[]` |
-| `update(query, $update)` | `boolean` | `false` |
-| `remove(query)` | `boolean` | `false` |
-| `removeById(id)` | `boolean` | `false` |
-| `oid(value?)` | `ObjectId` | fresh `ObjectId()` |
+| Method                      | Resolves to   | Empty default      |
+| --------------------------- | ------------- | ------------------ |
+| `find(query?, options?)`    | `doc[]`       | `[]`               |
+| `findOne(query?, options?)` | `doc \| null` | `null`             |
+| `findById(id, fields?)`     | `doc \| null` | `null`             |
+| `exists(query?)`            | `boolean`     | `false`            |
+| `count(query?)`             | `number`      | `0`                |
+| `distinct(field, query?)`   | `any[]`       | `[]`               |
+| `save(doc)`                 | `doc \| null` | `null`             |
+| `saveAll(docs)`             | `doc[]`       | `[]`               |
+| `update(query, $update)`    | `boolean`     | `false`            |
+| `remove(query)`             | `boolean`     | `false`            |
+| `removeById(id)`            | `boolean`     | `false`            |
+| `oid(value?)`               | `ObjectId`    | fresh `ObjectId()` |
 
 `save` inserts when `_id` is absent and replaces via `upsert` when present. `saveAll` delegates to `insertMany`; non-object entries are dropped silently.
 
@@ -82,20 +85,23 @@ new MongoClient(server, options?)
 The second argument to `find`, `findOne`, and `findById`:
 
 ```js
-await users.find({}, {
-  limit: 10,
-  skip: 0,
-  sort: { name: 1 },
-  fields: ['name', 'email']
-});
+await users.find(
+  {},
+  {
+    limit: 10,
+    skip: 0,
+    sort: { name: 1 },
+    fields: ['name', 'email']
+  }
+);
 ```
 
 Projection accepts three forms:
 
 ```js
-{ fields: ['name', 'email'] }   // whitelist; compiled to { name: 1, email: 1 }
-{ fields: { password: 0 } }     // exclusion map, passed through as-is
-{ projection: { name: 1 } }     // native driver shape, passed through as-is
+await users.find({}, { fields: ['name', 'email'] }); // whitelist; compiled to { name: 1, email: 1 }
+await users.find({}, { fields: { password: 0 } }); // exclusion map, passed through as-is
+await users.find({}, { projection: { name: 1 } }); // native driver shape, passed through as-is
 ```
 
 `findById` accepts the same forms positionally: `findById(id, ['name'])`.
@@ -111,7 +117,9 @@ await users.findById(existingObjectId); // passed through
 await users.find({ _id: '4e4e1638c85e808431000003' }); // coerced to ObjectId
 await users.find({ id: '4e4e1638c85e808431000003' }); // id alias rewritten to _id
 await users.find({ _id: { $in: ['4e4e1638c85e808431000003', someObjectId] } }); // mixed $in coerced
-await users.find({ _id: { $nin: ['4e4e1638c85e808431000003', '4e4e1638c85e808431000004'] } }); // same for $nin
+await users.find({
+  _id: { $nin: ['4e4e1638c85e808431000003', '4e4e1638c85e808431000004'] }
+}); // same for $nin
 ```
 
 Strings that are not valid 24-character hex pass through unchanged, so numeric and UUID `_id` schemes keep working.

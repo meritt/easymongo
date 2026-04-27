@@ -1,11 +1,23 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 
 import { MongoClient } from '../lib/index.js';
 
 test('throws when no connection target is given', () => {
-  for (const bad of [undefined, null, true, false, 10, [], ['10', '20'], () => {}]) {
-    assert.throws(() => new MongoClient(bad), /Connection url to mongo must be specified/);
+  for (const bad of [
+    undefined,
+    null,
+    true,
+    false,
+    10,
+    [],
+    ['10', '20'],
+    () => {}
+  ]) {
+    assert.throws(
+      () => new MongoClient(bad),
+      /Connection url to mongo must be specified/
+    );
   }
 });
 
@@ -20,12 +32,19 @@ test('respects host override', () => {
 });
 
 test('respects port override', () => {
-  const mongo = new MongoClient({ host: 'db.example', port: '27018', dbname: 'test' });
+  const mongo = new MongoClient({
+    host: 'db.example',
+    port: '27018',
+    dbname: 'test'
+  });
   assert.equal(mongo.url, 'mongodb://db.example:27018/test');
 });
 
 test('throws when dbname is missing in object form', () => {
-  assert.throws(() => new MongoClient({ host: 'localhost' }), /db name must be configured/);
+  assert.throws(
+    () => new MongoClient({ host: 'localhost' }),
+    /db name must be configured/
+  );
 });
 
 test('accepts a raw connection string', () => {
@@ -33,7 +52,6 @@ test('accepts a raw connection string', () => {
   const mongo = new MongoClient(url);
   assert.equal(mongo.url, url);
 });
-
 
 test('observability defaults: not silent, no onError', () => {
   const mongo = new MongoClient({ dbname: 'test' });
@@ -49,7 +67,10 @@ test('observability options are picked up', () => {
 });
 
 test('wrapper options are stripped from driverOptions', () => {
-  const mongo = new MongoClient({ dbname: 'test' }, { silent: true, onError: () => {}, maxPoolSize: 10 });
+  const mongo = new MongoClient(
+    { dbname: 'test' },
+    { silent: true, onError: () => {}, maxPoolSize: 10 }
+  );
   assert.equal(mongo.driverOptions.silent, undefined);
   assert.equal(mongo.driverOptions.onError, undefined);
   assert.equal(mongo.driverOptions.maxPoolSize, 10);

@@ -8,37 +8,36 @@
     "mongodb",
     "promise"
   ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/meritt/easymongo.git"
-  },
+  "license": "MIT",
   "author": {
     "name": "Alexey Simonenko",
     "email": "alexey@simonenko.dev",
     "url": "http://simonenko.xyz"
   },
-  "type": "module",
-  "exports": "./lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meritt/easymongo.git"
+  },
   "files": [
     "lib"
   ],
-  "engines": {
-    "node": ">=24.14"
+  "type": "module",
+  "exports": "./lib/index.js",
+  "scripts": {
+    "lint": "oxlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "test": "node --test test/*.js",
+    "coverage": "mkdir -p coverage && node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.js"
   },
   "dependencies": {
     "mongodb": "^7.2"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0",
-    "@stylistic/eslint-plugin": "^5.10",
-    "eslint": "^10.2",
-    "eslint-plugin-n": "^17.24",
-    "globals": "^17.5"
+    "oxfmt": "^0.47.0",
+    "oxlint": "^1.62.0"
   },
-  "scripts": {
-    "lint": "eslint .",
-    "test": "node --test test/*.js",
-    "coverage": "mkdir -p coverage && node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.js"
-  },
-  "license": "MIT"
+  "engines": {
+    "node": ">=24.14"
+  }
 }
