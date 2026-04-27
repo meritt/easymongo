@@ -152,6 +152,41 @@ describe('ensureIndexes', () => {
     assert.deepEqual(await items.ensureIndexes({}), []);
   });
 
+  test('first entry wins on intra-call conflict (deterministic precedence)', async () => {
+    const captured = [];
+    const local = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err, ctx) => captured.push({ err, ctx }) }
+    );
+    const localItems = local.collection(COLLECTION);
+
+    // Two specs targeting the same key with conflicting options. The first
+    // (unique: true) must win; the second is reported and skipped.
+    const names = await localItems.ensureIndexes([
+      { key: { handle: 1 }, options: { unique: true } },
+      { key: { handle: 1 }, options: { unique: false } }
+    ]);
+
+    assert.equal(names.length, 1);
+    assert.match(names[0], /handle/);
+
+    const native = await local.open(COLLECTION);
+    const idx = await native.indexes();
+    const handleIdx = idx.find((i) => i.name === names[0]);
+    assert.ok(handleIdx);
+    assert.equal(
+      handleIdx.unique,
+      true,
+      'unique flag from first entry preserved'
+    );
+
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].ctx.method, 'createIndex');
+
+    await dropAllNonId();
+    await local.close();
+  });
+
   test('skips entries without a key', async () => {
     const names = await items.ensureIndexes([
       { options: { unique: true } }, // no key → skip
