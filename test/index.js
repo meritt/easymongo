@@ -44,6 +44,20 @@ describe('count', () => {
     assert.equal(await users.count(), 3);
     assert.equal(await users.count({ name: 'Alexey' }), 2);
   });
+
+  test('falls back to materialization for $where', async () => {
+    await users.saveAll([
+      { name: 'A', age: 20 },
+      { name: 'B', age: 35 },
+      { name: 'C', age: 40 },
+      { name: 'D', age: 25 }
+    ]);
+    // countDocuments does not accept $where (it builds an aggregation
+    // pipeline and $where is disallowed inside $match). Wrapper must
+    // detect the error and fall back to a real query.
+    const n = await users.count({ $where: 'this.age > 30' });
+    assert.equal(n, 2);
+  });
 });
 
 describe('find', () => {
