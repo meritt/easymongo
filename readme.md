@@ -80,6 +80,8 @@ new MongoClient(server, options?)
 
 `save` inserts when `_id` is absent and replaces via `upsert` when present. `saveAll` delegates to `insertMany`; non-object entries are dropped silently.
 
+`count(query)` calls `countDocuments` and falls back to a materialized `find().toArray()` when the driver rejects the query (operators such as `$where` and `$near` are valid in `find` but not in the aggregation `$match` that `countDocuments` builds). The fallback is a real round trip, so prefer cheaper operators when possible.
+
 ## Read options
 
 The second argument to `find`, `findOne`, and `findById`:
