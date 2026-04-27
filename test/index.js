@@ -10,17 +10,24 @@ const COLLECTION = `easymongo_test_${randomUUID()}`;
 const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
 const users = mongo.collection(COLLECTION);
 
+// Fixture cleanup goes through the native driver: `update({})`/`remove({})`
+// are blocked by the empty-filter guard.
+async function wipe(client, name) {
+  const native = await client.open(name);
+  await native.deleteMany({});
+}
+
 before(async () => {
-  await users.remove({});
+  await wipe(mongo, COLLECTION);
 });
 
 after(async () => {
-  await users.remove({});
+  await wipe(mongo, COLLECTION);
   await mongo.close();
 });
 
 beforeEach(async () => {
-  await users.remove({});
+  await wipe(mongo, COLLECTION);
 });
 
 describe('count', () => {
@@ -221,6 +228,121 @@ describe('removeById', () => {
   });
 });
 
+describe('empty filter guard', () => {
+  test('update(null) returns false and does not modify collection', async () => {
+    await users.saveAll([{ name: 'A' }, { name: 'B' }]);
+    const result = await users.update(null, { $set: { url: 'x' } });
+    assert.equal(result, false);
+    const all = await users.find();
+    assert.equal(all.length, 2);
+    for (const doc of all) {
+      assert.equal(doc.url, undefined);
+    }
+  });
+
+  test('update(undefined) returns false and does not modify', async () => {
+    await users.save({ name: 'A' });
+    const result = await users.update(undefined, { $set: { url: 'x' } });
+    assert.equal(result, false);
+    const doc = await users.findOne({ name: 'A' });
+    assert.equal(doc.url, undefined);
+  });
+
+  test('update({}) returns false and does not modify', async () => {
+    await users.save({ name: 'A' });
+    const result = await users.update({}, { $set: { url: 'x' } });
+    assert.equal(result, false);
+    const doc = await users.findOne({ name: 'A' });
+    assert.equal(doc.url, undefined);
+  });
+
+  test('update with explicit query still works (control)', async () => {
+    await users.save({ name: 'A' });
+    const ok = await users.update({ name: 'A' }, { $set: { url: 'x' } });
+    assert.equal(ok, true);
+    const doc = await users.findOne({ name: 'A' });
+    assert.equal(doc.url, 'x');
+  });
+
+  test('remove(null) returns false and does not delete', async () => {
+    await users.saveAll([{ name: 'A' }, { name: 'B' }]);
+    assert.equal(await users.remove(null), false);
+    assert.equal(await users.count(), 2);
+  });
+
+  test('remove(undefined) returns false and does not delete', async () => {
+    await users.save({ name: 'A' });
+    assert.equal(await users.remove(undefined), false);
+    assert.equal(await users.count(), 1);
+  });
+
+  test('remove({}) returns false and does not delete', async () => {
+    await users.save({ name: 'A' });
+    assert.equal(await users.remove({}), false);
+    assert.equal(await users.count(), 1);
+  });
+
+  test('remove with explicit query still works (control)', async () => {
+    await users.saveAll([{ name: 'A' }, { name: 'B' }]);
+    assert.equal(await users.remove({ name: 'A' }), true);
+    assert.equal(await users.count(), 1);
+  });
+
+  test('onError receives ctx for blocked update', async () => {
+    const captured = [];
+    const local = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err, ctx) => captured.push({ err, ctx }) }
+    );
+    const localUsers = local.collection(COLLECTION);
+
+    await localUsers.update(null, { $set: { x: 1 } });
+
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].ctx.method, 'update');
+    assert.equal(captured[0].ctx.collection, COLLECTION);
+    assert.match(captured[0].err.message, /empty filter/i);
+
+    await local.close();
+  });
+
+  test('onError receives ctx for blocked remove', async () => {
+    const captured = [];
+    const local = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err, ctx) => captured.push({ err, ctx }) }
+    );
+    const localUsers = local.collection(COLLECTION);
+
+    await localUsers.remove({});
+
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].ctx.method, 'remove');
+    assert.equal(captured[0].ctx.collection, COLLECTION);
+    assert.match(captured[0].err.message, /empty filter/i);
+
+    await local.close();
+  });
+
+  test('silent: true suppresses guard report', async () => {
+    const captured = [];
+    const local = new MongoClient(
+      { dbname: 'test' },
+      {
+        silent: true,
+        onError: (err, ctx) => captured.push({ err, ctx })
+      }
+    );
+    const localUsers = local.collection(COLLECTION);
+
+    const ok = await localUsers.remove(null);
+    assert.equal(ok, false);
+    assert.equal(captured.length, 0);
+
+    await local.close();
+  });
+});
+
 describe('query preparation', () => {
   test('id alias: query with {id: ...} works', async () => {
     const created = await users.save({ name: 'Alexey' });
@@ -324,7 +446,7 @@ describe('connection lifecycle', () => {
     assert.ok(found);
     assert.equal(found.name, 'before');
 
-    await col.remove({});
+    await wipe(client, col.name);
     await client.close();
   });
 });

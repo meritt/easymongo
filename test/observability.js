@@ -44,14 +44,16 @@ test('fail-silent: save returns null on bad connection', async () => {
 
 test('fail-silent: update returns false on bad connection', async () => {
   const mongo = new MongoClient(UNREACHABLE, { silent: true });
-  const result = await mongo.collection('users').update({}, { $set: { a: 1 } });
+  const result = await mongo
+    .collection('users')
+    .update({ name: 'x' }, { $set: { a: 1 } });
   assert.equal(result, false);
   await mongo.close();
 });
 
 test('fail-silent: remove returns false on bad connection', async () => {
   const mongo = new MongoClient(UNREACHABLE, { silent: true });
-  const result = await mongo.collection('users').remove({});
+  const result = await mongo.collection('users').remove({ name: 'x' });
   assert.equal(result, false);
   await mongo.close();
 });
