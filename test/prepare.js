@@ -1,7 +1,8 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 
 import { ObjectId } from 'mongodb';
+
 import { prepare, prepareId } from '../lib/prepare.js';
 
 const HEX = '4e4e1638c85e808431000003';

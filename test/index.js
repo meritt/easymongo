@@ -1,8 +1,9 @@
-import { describe, test, before, after, beforeEach } from 'node:test';
-import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { describe, test, before, after, beforeEach } from 'node:test';
 
 import { ObjectId } from 'mongodb';
+
 import { MongoClient } from '../lib/index.js';
 
 const COLLECTION = `easymongo_test_${randomUUID()}`;
@@ -108,14 +109,23 @@ describe('exists', () => {
 
 describe('distinct', () => {
   test('returns unique values', async () => {
-    await users.saveAll([{ tag: 'a' }, { tag: 'b' }, { tag: 'a' }, { tag: 'c' }]);
+    await users.saveAll([
+      { tag: 'a' },
+      { tag: 'b' },
+      { tag: 'a' },
+      { tag: 'c' }
+    ]);
     const result = await users.distinct('tag');
     assert.equal(result.length, 3);
     assert.deepEqual(result.sort(), ['a', 'b', 'c']);
   });
 
   test('respects query', async () => {
-    await users.saveAll([{ tag: 'a', g: 1 }, { tag: 'b', g: 1 }, { tag: 'c', g: 2 }]);
+    await users.saveAll([
+      { tag: 'a', g: 1 },
+      { tag: 'b', g: 1 },
+      { tag: 'c', g: 2 }
+    ]);
     const result = await users.distinct('tag', { g: 1 });
     assert.deepEqual(result.sort(), ['a', 'b']);
   });
@@ -162,12 +172,18 @@ describe('saveAll', () => {
 
 describe('update', () => {
   test('false when nothing matched', async () => {
-    assert.equal(await users.update({ name: 'Nobody' }, { $set: { url: 'x' } }), false);
+    assert.equal(
+      await users.update({ name: 'Nobody' }, { $set: { url: 'x' } }),
+      false
+    );
   });
 
   test('true when at least one document modified', async () => {
     await users.saveAll([{ name: 'Alexey' }, { name: 'Alexey' }]);
-    const ok = await users.update({ name: 'Alexey' }, { $set: { url: 'simonenko.xyz' } });
+    const ok = await users.update(
+      { name: 'Alexey' },
+      { $set: { url: 'simonenko.xyz' } }
+    );
     assert.equal(ok, true);
     const all = await users.find({ name: 'Alexey' });
     for (const doc of all) {
@@ -218,7 +234,9 @@ describe('query preparation', () => {
     const b = await users.save({ name: 'B' });
     await users.save({ name: 'C' });
 
-    const result = await users.find({ _id: { $in: [a._id.toString(), b._id.toString()] } });
+    const result = await users.find({
+      _id: { $in: [a._id.toString(), b._id.toString()] }
+    });
     assert.equal(result.length, 2);
   });
 
@@ -316,9 +334,12 @@ describe('saveAll partial recovery', () => {
     const first = await users.save({ name: 'X' });
 
     const captured = [];
-    const local = new MongoClient({ dbname: 'test' }, {
-      onError: (err, ctx) => captured.push({ err, ctx })
-    });
+    const local = new MongoClient(
+      { dbname: 'test' },
+      {
+        onError: (err, ctx) => captured.push({ err, ctx })
+      }
+    );
     const localUsers = local.collection(COLLECTION);
 
     const result = await localUsers.saveAll([
@@ -356,12 +377,13 @@ describe('saveAll partial recovery', () => {
   test('connection error returns []', async () => {
     const unreachable = new MongoClient(
       'mongodb://127.0.0.1:1/test?serverSelectionTimeoutMS=300',
-      { silent: true }
+      {
+        silent: true
+      }
     );
-    const result = await unreachable.collection('anything').saveAll([
-      { name: 'A' },
-      { name: 'B' }
-    ]);
+    const result = await unreachable
+      .collection('anything')
+      .saveAll([{ name: 'A' }, { name: 'B' }]);
     assert.deepEqual(result, []);
     await unreachable.close();
   });
