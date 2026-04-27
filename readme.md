@@ -140,6 +140,17 @@ The `ctx` passed to `onError` has the shape `{ method, collection?, query? }`, e
 
 A throwing `onError` is itself caught and ignored; a broken reporter cannot take down the caller.
 
+## Empty filter protection
+
+`update(query, $update)` and `remove(query)` reject empty filters. `null`, `undefined`, and `{}` short-circuit to `false` without touching the driver. The rejection is reported through `onError` (or `console.error`) with `{ method, collection, query }` so it stays visible.
+
+```js
+await users.update(maybeMissing, { $set: { url: 'x' } }); // false, nothing rewritten
+await users.remove(undefined); // false, nothing deleted
+```
+
+To wipe a collection, use a non-empty filter such as `{ _id: { $exists: true } }`, or call the native driver directly via `client.open(name)`.
+
 ## Author
 
 - [Alexey Simonenko](https://github.com/meritt)
