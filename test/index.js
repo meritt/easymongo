@@ -45,6 +45,40 @@ describe('count', () => {
     assert.equal(await users.count({ name: 'Alexey' }), 2);
   });
 
+  test('count({}) uses estimatedDocumentCount short-circuit', async (t) => {
+    await users.saveAll([{ a: 1 }, { a: 2 }, { a: 3 }]);
+
+    const native = await mongo.open(COLLECTION);
+    let estimatedCalls = 0;
+    let countDocsCalls = 0;
+    t.mock.method(native, 'estimatedDocumentCount', async () => {
+      estimatedCalls = estimatedCalls + 1;
+      return 3;
+    });
+    t.mock.method(native, 'countDocuments', async () => {
+      countDocsCalls = countDocsCalls + 1;
+      return 999;
+    });
+
+    const result = await users.count({});
+    assert.equal(result, 3);
+    assert.equal(estimatedCalls, 1, 'estimatedDocumentCount called once');
+    assert.equal(
+      countDocsCalls,
+      0,
+      'countDocuments not called for empty filter'
+    );
+
+    const filtered = await users.count({ a: 1 });
+    assert.equal(filtered, 999);
+    assert.equal(estimatedCalls, 1);
+    assert.equal(
+      countDocsCalls,
+      1,
+      'countDocuments called for non-empty filter'
+    );
+  });
+
   test('falls back to materialization for $where', async () => {
     await users.saveAll([
       { name: 'A', age: 20 },

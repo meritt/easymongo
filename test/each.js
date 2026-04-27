@@ -175,6 +175,69 @@ describe('each — fail-silent', () => {
   });
 });
 
+describe('each — concurrent iteration on the same cursor', () => {
+  test('two parallel for-await loops both see all documents', async () => {
+    await seed(60);
+    const cursor = items.each({});
+    const sinkA = [];
+    const sinkB = [];
+    await Promise.all([
+      (async () => {
+        for await (const doc of cursor) sinkA.push(doc.n);
+      })(),
+      (async () => {
+        for await (const doc of cursor) sinkB.push(doc.n);
+      })()
+    ]);
+    assert.equal(sinkA.length, 60, 'iterator A must see all 60 docs');
+    assert.equal(sinkB.length, 60, 'iterator B must see all 60 docs');
+  });
+
+  test('await using + parallel iteration: both finish without spurious errors', async () => {
+    await seed(40);
+    const captured = [];
+    const local = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err, ctx) => captured.push({ err, ctx }) }
+    );
+    const sinkA = [];
+    const sinkB = [];
+    {
+      await using cursor = local.collection(COLLECTION).each({});
+      await Promise.all([
+        (async () => {
+          for await (const doc of cursor) sinkA.push(doc.n);
+        })(),
+        (async () => {
+          for await (const doc of cursor) sinkB.push(doc.n);
+        })()
+      ]);
+    }
+    assert.equal(sinkA.length, 40);
+    assert.equal(sinkB.length, 40);
+    const sessionErrors = captured.filter((c) =>
+      /session that has ended/i.test(c.err?.message ?? '')
+    );
+    assert.equal(
+      sessionErrors.length,
+      0,
+      'no spurious session-ended errors after factory model fix'
+    );
+    await local.close();
+  });
+
+  test('sequential reuse of the same each() object yields the full set each time', async () => {
+    await seed(15);
+    const cursor = items.each({});
+    const first = [];
+    for await (const doc of cursor) first.push(doc.n);
+    const second = [];
+    for await (const doc of cursor) second.push(doc.n);
+    assert.equal(first.length, 15);
+    assert.equal(second.length, 15);
+  });
+});
+
 describe('each — AbortSignal', () => {
   test('pre-aborted signal yields nothing and emits', async () => {
     await seed(20);

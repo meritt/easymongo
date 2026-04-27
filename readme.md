@@ -59,28 +59,45 @@ new MongoClient(server, options?)
 | `silent`  | `false`         | Suppress all internal error reporting                         |
 | `onError` | `console.error` | `(err, ctx) => void`, `ctx = { method, collection?, query? }` |
 
-`client.collection(name)` returns a `Collection`. `client.close()` releases the connection and is safe to call more than once.
+`client.collection(name)` returns a `Collection`. `client.close()` releases the connection and is safe to call more than once. Concurrent `close()` calls share one teardown.
+
+`MongoClient` implements `Symbol.asyncDispose`, so it composes with `await using`:
+
+```js
+{
+  await using mongo = new MongoClient({ dbname: 'app' });
+  const users = mongo.collection('users');
+  await users.save({ name: 'Alexey' });
+} // close() is invoked automatically on scope exit, even on throw
+```
 
 ## Collection methods
 
-| Method                      | Resolves to   | Empty default      |
-| --------------------------- | ------------- | ------------------ |
-| `find(query?, options?)`    | `doc[]`       | `[]`               |
-| `findOne(query?, options?)` | `doc \| null` | `null`             |
-| `findById(id, fields?)`     | `doc \| null` | `null`             |
-| `exists(query?)`            | `boolean`     | `false`            |
-| `count(query?)`             | `number`      | `0`                |
-| `distinct(field, query?)`   | `any[]`       | `[]`               |
-| `save(doc)`                 | `doc \| null` | `null`             |
-| `saveAll(docs)`             | `doc[]`       | `[]`               |
-| `update(query, $update)`    | `boolean`     | `false`            |
-| `remove(query)`             | `boolean`     | `false`            |
-| `removeById(id)`            | `boolean`     | `false`            |
-| `oid(value?)`               | `ObjectId`    | fresh `ObjectId()` |
+| Method                              | Resolves to                            | Empty default      |
+| ----------------------------------- | -------------------------------------- | ------------------ |
+| `find(query?, options?)`            | `doc[]`                                | `[]`               |
+| `findOne(query?, options?)`         | `doc \| null`                          | `null`             |
+| `findById(id, fields?)`             | `doc \| null`                          | `null`             |
+| `each(query?, options?)`            | `AsyncIterable<doc> & AsyncDisposable` | empty iteration    |
+| `exists(query?, options?)`          | `boolean`                              | `false`            |
+| `count(query?, options?)`           | `number`                               | `0`                |
+| `distinct(field, query?, options?)` | `any[]`                                | `[]`               |
+| `save(doc, options?)`               | `doc \| null`                          | `null`             |
+| `saveAll(docs, options?)`           | `doc[]`                                | `[]`               |
+| `update(query, $update, options?)`  | `boolean`                              | `false`            |
+| `remove(query, options?)`           | `boolean`                              | `false`            |
+| `removeById(id, options?)`          | `boolean`                              | `false`            |
+| `createIndex(spec, options?)`       | `string \| null`                       | `null`             |
+| `ensureIndexes(specs)`              | `string[]`                             | `[]`               |
+| `oid(value?)`                       | `ObjectId`                             | fresh `ObjectId()` |
+
+All async methods accept `options.signal: AbortSignal` for cancellation. See [AbortSignal](#abortsignal).
 
 `save` inserts when `_id` is absent and replaces via `upsert` when present. `saveAll` delegates to `insertMany`; non-object entries are dropped silently.
 
-`count(query)` calls `countDocuments` and falls back to a materialized `find().toArray()` when the driver rejects the query (operators such as `$where` and `$near` are valid in `find` but not in the aggregation `$match` that `countDocuments` builds). The fallback is a real round trip, so prefer cheaper operators when possible.
+`count({})` short-circuits to `estimatedDocumentCount`, which reads the cached collection size without a full scan. Numbers may be slightly off on sharded collections with orphans or after an unclean shutdown, but the path is roughly two orders of magnitude faster.
+
+`count(query)` with a non-empty filter calls `countDocuments` and falls back to a streamed `find` cursor with `_id`-only projection when the driver rejects the query (operators such as `$where` and `$near` are valid in `find` but not in the aggregation `$match` that `countDocuments` builds). The fallback streams in batches and is bounded in memory, but it's a real round trip — prefer indexed predicates when possible.
 
 ## Read options
 
@@ -107,6 +124,52 @@ await users.find({}, { projection: { name: 1 } }); // native driver shape, passe
 ```
 
 `findById` accepts the same forms positionally: `findById(id, ['name'])`.
+
+## Streaming reads
+
+`each(query?, options?)` returns a lazy iterable that opens a cursor on first iteration and closes it when iteration ends. It accepts the same options as `find` (`limit`, `skip`, `sort`, `fields`, `projection`, `signal`).
+
+```js
+for await (const user of users.each({ active: true })) {
+  await ship(user);
+}
+```
+
+For long-running iteration, scope the cursor with `await using` so it is closed even on early `break` or thrown errors:
+
+```js
+{
+  await using cursor = users.each({ active: true });
+  for await (const user of cursor) {
+    if (!shouldShip(user)) break;
+    await ship(user);
+  }
+}
+```
+
+The returned object is a factory — each `for await` opens its own cursor, so the same `each(...)` value can be iterated multiple times sequentially or in parallel. Abandoning an iterator without `break`/`return`/`await using` delays cursor cleanup until the generator is GC'd or the client is closed; prefer explicit lifetime management for unbounded queries.
+
+`each()` exposes only `Symbol.asyncIterator` and `Symbol.asyncDispose`. There is no `close()` method or `cancel()` on the returned object — disposal is the only way to terminate iteration explicitly.
+
+Errors during open or iteration end the loop quietly and report through `onError` (or `console.error`) with `ctx.method === 'each'`. Cursor close errors are reported with `ctx.method === 'each.close'`.
+
+## Indexes
+
+```js
+await users.createIndex({ email: 1 }, { unique: true });
+// 'email_1' or null on conflict / driver error
+
+await users.ensureIndexes([
+  { key: { email: 1 }, options: { unique: true } },
+  { key: { createdAt: -1 } },
+  { key: { name: 'text' } }
+]);
+// ['email_1', 'createdAt_-1', 'name_text']
+```
+
+`createIndex(spec, options?)` returns the index name, or `null` if the driver rejects the spec or there is a conflict with an existing index.
+
+`ensureIndexes(specs)` processes its input sequentially — when two entries target the same key with different options, the **first one wins**: it succeeds, and the rest collapse to a conflict + `onError` and are skipped. Returns the names of successfully created or already-present indexes.
 
 ## IDs
 
@@ -152,6 +215,36 @@ await users.remove(undefined); // false, nothing deleted
 ```
 
 To wipe a collection, use a non-empty filter such as `{ _id: { $exists: true } }`, or call the native driver directly via `client.open(name)`.
+
+## Positional updates with `arrayFilters`
+
+`update(query, $update, options)` forwards `options.arrayFilters` to the driver, enabling positional updates over array elements:
+
+```js
+await pages.update(
+  { _id: pageId },
+  { $set: { 'links.$[el].url': '/new' } },
+  { arrayFilters: [{ 'el.type': 'related' }] }
+);
+```
+
+Only `arrayFilters` and `signal` are forwarded; other driver-level update options are ignored. Use `client.open(name)` directly if you need them.
+
+## AbortSignal
+
+Every async method (except `findById`) accepts `options.signal` and forwards it to the driver. Pre-aborted signals collapse to the empty default and emit through `onError`:
+
+```js
+const ctrl = new AbortController();
+setTimeout(() => ctrl.abort(), 200);
+
+const docs = await users.find({}, { signal: ctrl.signal });
+// [] if the operation was aborted before completion
+```
+
+Aborting mid-iteration of `each()` ends the loop quietly and reports through `onError`.
+
+`update({}, ..., {signal: aborted})` and `remove({}, {signal: aborted})` hit the empty-filter guard first, so the abort is invisible in `onError` for that one combination — pass a non-empty filter when both apply.
 
 ## Author
 
