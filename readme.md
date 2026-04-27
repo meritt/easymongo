@@ -99,19 +99,9 @@ await users.find(
 Projection accepts three forms:
 
 ```js
-{
-  fields: ['name', 'email'];
-} // whitelist; compiled to { name: 1, email: 1 }
-{
-  fields: {
-    password: 0;
-  }
-} // exclusion map, passed through as-is
-{
-  projection: {
-    name: 1;
-  }
-} // native driver shape, passed through as-is
+await users.find({}, { fields: ['name', 'email'] }); // whitelist; compiled to { name: 1, email: 1 }
+await users.find({}, { fields: { password: 0 } }); // exclusion map, passed through as-is
+await users.find({}, { projection: { name: 1 } }); // native driver shape, passed through as-is
 ```
 
 `findById` accepts the same forms positionally: `findById(id, ['name'])`.
