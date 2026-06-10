@@ -41,7 +41,7 @@ test('open() races close(): collection method emits with explicit error message'
   const messages = captured.map((c) => c.err?.message ?? '');
   // Either the dedicated guard fired, or the driver itself rejected the
   // closed connection; both paths must surface a useful message.
-  const hasUseful = messages.some(
+  const useful = messages.some(
     (m) =>
       /client closed during open/i.test(m) ||
       /closed/i.test(m) ||
@@ -49,9 +49,58 @@ test('open() races close(): collection method emits with explicit error message'
       /Topology/i.test(m)
   );
   assert.ok(
-    hasUseful,
+    useful,
     `expected a meaningful close-related error, got: ${messages.join(' | ')}`
   );
+});
+
+test('open() guard: connect settling after close() collapses to the empty default', async () => {
+  const captured = [];
+  const mongo = new MongoClient(
+    { dbname: 'test' },
+    { onError: (err, ctx) => captured.push({ err, ctx }) }
+  );
+
+  // Deterministic interleaving: connect settles after close() cleared state,
+  // so open() must hit its `!this.db` guard instead of using a torn-down client.
+  mongo._connecting = Promise.resolve();
+  mongo.client = null;
+  mongo.db = null;
+
+  const result = await mongo.collection('easymongo_guard').count({ x: 1 });
+
+  assert.equal(result, 0, 'collapsed to empty default');
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0].err.message, 'Client closed during open');
+  assert.equal(captured[0].ctx.method, 'count');
+  await mongo.close();
+});
+
+test('close(): native close error is swallowed and reported as {method: close}', async () => {
+  const captured = [];
+  const mongo = new MongoClient(
+    { dbname: 'test' },
+    { onError: (err, ctx) => captured.push({ err, ctx }) }
+  );
+  await mongo.collection('easymongo_close_err').count();
+
+  const native = mongo.client;
+  const original = native.close.bind(native);
+  native.close = async () => {
+    throw new Error('boom on close');
+  };
+
+  await mongo.close();
+
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0].err.message, 'boom on close');
+  assert.deepEqual(captured[0].ctx, { method: 'close' });
+  assert.equal(mongo.client, null);
+  assert.equal(mongo.db, null);
+
+  // Release the connection the throwing stub left open, or the test process
+  // never exits.
+  await original();
 });
 
 test('close() racing with reopen closes both clients', async () => {
@@ -60,10 +109,10 @@ test('close() racing with reopen closes both clients', async () => {
   const clientA = mongo.client;
 
   let closeACalls = 0;
-  const origAClose = clientA.close.bind(clientA);
+  const closeA = clientA.close.bind(clientA);
   clientA.close = async (...args) => {
     closeACalls = closeACalls + 1;
-    return origAClose(...args);
+    return closeA(...args);
   };
 
   const firstClose = mongo.close();
@@ -75,10 +124,10 @@ test('close() racing with reopen closes both clients', async () => {
   assert.notEqual(clientA, clientB, 'reopen produced a fresh native client');
 
   let closeBCalls = 0;
-  const origBClose = clientB.close.bind(clientB);
+  const closeB = clientB.close.bind(clientB);
   clientB.close = async (...args) => {
     closeBCalls = closeBCalls + 1;
-    return origBClose(...args);
+    return closeB(...args);
   };
 
   const secondClose = mongo.close();
@@ -93,7 +142,6 @@ test('close() racing with reopen closes both clients', async () => {
 
 test('concurrent close() calls share one teardown', async () => {
   const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
-  // Open the connection so close() actually has work to do.
   await mongo.collection('easymongo_close_share').count();
 
   let closeCount = 0;

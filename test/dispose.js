@@ -35,7 +35,7 @@ test('await using triggers close at scope end', async () => {
   assert.equal(captured.client, null);
   assert.equal(captured.db, null);
 
-  // Cleanup leftover document via a fresh client.
+  // Wipe via the native driver — remove({}) is blocked by the empty-filter guard.
   const cleaner = new MongoClient({ dbname: 'test' }, { silent: true });
   const native = await cleaner.open(collection);
   await native.deleteMany({});

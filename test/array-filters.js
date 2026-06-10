@@ -71,7 +71,6 @@ describe('update with arrayFilters', () => {
 
   test('only arrayFilters is forwarded — other options ignored', async () => {
     await articles.save({ name: 'A', count: 1 });
-    // upsert: true should NOT take effect — not in whitelist.
     const ok = await articles.update(
       { name: 'NoSuch' },
       { $set: { count: 99 } },
@@ -87,10 +86,10 @@ describe('update with arrayFilters', () => {
       { dbname: 'test' },
       { onError: (err, ctx) => captured.push({ err, ctx }) }
     );
-    const localArticles = local.collection(COLLECTION);
+    const col = local.collection(COLLECTION);
 
-    await localArticles.save({ name: 'A', items: [{ kind: 'x' }] });
-    const ok = await localArticles.update(
+    await col.save({ name: 'A', items: [{ kind: 'x' }] });
+    const ok = await col.update(
       { name: 'A' },
       { $set: { 'items.$[el].kind': 'y' } },
       { arrayFilters: [{ 'el.kind': 'x' }, { 'el.kind': 'extra-unused' }] }
