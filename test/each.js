@@ -238,6 +238,69 @@ describe('each — concurrent iteration on the same cursor', () => {
   });
 });
 
+describe('each — local onError', () => {
+  test('connection error routes to the local handler only', async () => {
+    let clientCalled = 0;
+    const broken = new MongoClient(
+      'mongodb://127.0.0.1:1/test?serverSelectionTimeoutMS=300',
+      {
+        onError: () => {
+          clientCalled = clientCalled + 1;
+        }
+      }
+    );
+
+    const captured = [];
+    const seen = await collect(
+      broken
+        .collection('whatever')
+        .each({}, { onError: (err, ctx) => captured.push(ctx.method) })
+    );
+
+    assert.deepEqual(seen, []);
+    assert.deepEqual(captured, ['each']);
+    assert.equal(clientCalled, 0);
+    await broken.close();
+  });
+
+  test('mid-stream abort routes to the local handler', async () => {
+    await seed(200);
+    let clientCalled = 0;
+    const local = new MongoClient(
+      { dbname: 'test' },
+      {
+        onError: () => {
+          clientCalled = clientCalled + 1;
+        }
+      }
+    );
+
+    const captured = [];
+    const ctrl = new AbortController();
+    let n = 0;
+    for await (const _doc of local.collection(COLLECTION).each(
+      {},
+      {
+        signal: ctrl.signal,
+        onError: (err, ctx) => captured.push(ctx.method)
+      }
+    )) {
+      n = n + 1;
+      if (n === 5) {
+        ctrl.abort();
+      }
+    }
+
+    assert.ok(n >= 5);
+    assert.ok(
+      captured.includes('each'),
+      'mid-stream error must reach the local handler'
+    );
+    assert.equal(clientCalled, 0, 'client onError must stay silent');
+    await local.close();
+  });
+});
+
 describe('each — AbortSignal', () => {
   test('pre-aborted signal yields nothing and emits', async () => {
     await seed(20);
