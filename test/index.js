@@ -86,11 +86,43 @@ describe('count', () => {
       { name: 'C', age: 40 },
       { name: 'D', age: 25 }
     ]);
-    // countDocuments does not accept $where (it builds an aggregation
-    // pipeline and $where is disallowed inside $match). Wrapper must
-    // detect the error and fall back to a real query.
+    // countDocuments rejects $where ($where is disallowed inside its $match
+    // aggregation stage), so the wrapper must fall back to a real query.
     const n = await users.count({ $where: 'this.age > 30' });
     assert.equal(n, 2);
+  });
+
+  test('falls back for Location* uassert codes', async (t) => {
+    await users.saveAll([{ a: 1 }, { a: 2 }]);
+
+    const native = await mongo.open(COLLECTION);
+    t.mock.method(native, 'countDocuments', async () => {
+      const err = new Error('synthetic uassert');
+      err.name = 'MongoServerError';
+      err.code = 5626500;
+      err.codeName = 'Location5626500';
+      throw err;
+    });
+
+    assert.equal(await users.count({ a: { $gte: 1 } }), 2);
+  });
+
+  test('does not fall back to a scan for non-query-shape errors', async (t) => {
+    await users.saveAll([{ a: 1 }, { a: 2 }]);
+
+    const native = await mongo.open(COLLECTION);
+    let findCalls = 0;
+    t.mock.method(native, 'countDocuments', async () => {
+      throw new Error('transient network failure');
+    });
+    t.mock.method(native, 'find', () => {
+      findCalls = findCalls + 1;
+      throw new Error('fallback scan must not run');
+    });
+
+    const result = await users.count({ a: 1 });
+    assert.equal(result, 0);
+    assert.equal(findCalls, 0, 'find not called for a non-MongoServerError');
   });
 });
 
