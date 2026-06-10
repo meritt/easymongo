@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["eslint", "unicorn", "oxc", "import", "promise", "node"],
+  "plugins": ["eslint", "unicorn", "oxc", "import", "promise", "node", "jsdoc"],
   "env": {
     "node": true,
     "es2026": true
@@ -12,7 +12,12 @@
     "perf": "error"
   },
   "rules": {
+    "complexity": "error",
     "eqeqeq": ["error", "always", { "null": "ignore" }],
+    "max-depth": "error",
+    "max-nested-callbacks": "error",
+    "no-else-return": "error",
+    "no-lonely-if": "error",
     "no-constructor-return": "error",
     "no-duplicate-imports": "error",
     "no-promise-executor-return": "error",
@@ -43,9 +48,25 @@
     "prefer-template": "error",
     "symbol-description": "error",
     "yoda": "error",
+    "unicorn/catch-error-name": ["error", { "name": "err" }],
+    "unicorn/error-message": "error",
+    "unicorn/no-negated-condition": "error",
+    "unicorn/no-useless-promise-resolve-reject": "error",
+    "unicorn/prefer-at": "error",
     "unicorn/prefer-node-protocol": "error",
+    "unicorn/prefer-set-has": "error",
+    "unicorn/throw-new-error": "error",
+    "import/first": "error",
+    "import/no-commonjs": "error",
     "import/no-cycle": "error",
+    "import/no-duplicates": "error",
+    "import/no-mutable-exports": "error",
+    "import/no-self-import": "error",
     "promise/always-return": "off",
+    "promise/no-multiple-resolved": "error",
+    "promise/no-nesting": "error",
+    "promise/no-return-wrap": "error",
+    "promise/param-names": "error",
     "no-underscore-dangle": "off"
   },
   "overrides": [
