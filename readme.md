@@ -123,7 +123,9 @@ await users.find({}, { fields: { password: 0 } }); // exclusion map, passed thro
 await users.find({}, { projection: { name: 1 } }); // native driver shape, passed through as-is
 ```
 
-`findById` accepts the same forms positionally: `findById(id, ['name'])`.
+The array form fails closed: it always produces a projection. Non-string entries are ignored, and when nothing usable remains (`[]`, `['__proto__']`, `[42]`) the projection collapses to `{ _id: 1 }` — a user-controlled array cannot silently disable a field whitelist.
+
+`findById` accepts the array and map forms positionally: `findById(id, ['name'])`.
 
 ## Streaming reads
 
