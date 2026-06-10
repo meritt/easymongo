@@ -389,6 +389,79 @@ test('local onError: every options-taking method routes to the local handler', a
   await mongo.close();
 });
 
+test('never-throw: hostile getter in the filter collapses update/remove to the empty-filter reject', async () => {
+  const captured = [];
+  const mongo = new MongoClient(UNREACHABLE, {
+    onError: (err, ctx) => captured.push(`${ctx.method}: ${err.message}`)
+  });
+  const col = mongo.collection('users');
+  const hostile = {
+    get name() {
+      throw new Error('hostile filter getter');
+    }
+  };
+
+  assert.equal(await col.update(hostile, { $set: { a: 1 } }), false);
+  assert.equal(await col.remove(hostile), false);
+  assert.deepEqual(captured, [
+    'update: Empty filter rejected',
+    'remove: Empty filter rejected'
+  ]);
+  await mongo.close();
+});
+
+test('never-throw: revoked Proxy input collapses to the empty default', async () => {
+  const mongo = new MongoClient(UNREACHABLE, { silent: true });
+  const col = mongo.collection('users');
+  const { proxy, revoke } = Proxy.revocable({}, {});
+  revoke();
+
+  assert.deepEqual(await col.saveAll(proxy), []);
+  assert.equal(await col.findById(proxy), null);
+  assert.equal(await col.removeById(proxy), false);
+  assert.equal(await col.createIndex(proxy), null);
+  assert.equal(await col.update(proxy, { $set: { a: 1 } }), false);
+  assert.equal(await col.remove(proxy), false);
+  await mongo.close();
+});
+
+test('never-throw: hostile document getter in saveAll collapses to []', async () => {
+  const captured = [];
+  const mongo = new MongoClient(UNREACHABLE, { silent: true });
+  const col = mongo.collection('users');
+
+  const result = await col.saveAll(
+    [
+      {
+        get a() {
+          throw new Error('hostile doc getter');
+        }
+      }
+    ],
+    { onError: (err, ctx) => captured.push(ctx.method) }
+  );
+
+  assert.deepEqual(result, []);
+  assert.deepEqual(captured, ['saveAll']);
+  await mongo.close();
+});
+
+test('never-throw: hostile getter in an ensureIndexes entry skips the entry', async () => {
+  const mongo = new MongoClient(UNREACHABLE, { silent: true });
+  const col = mongo.collection('users');
+
+  const result = await col.ensureIndexes([
+    {
+      get key() {
+        throw new Error('hostile key getter');
+      }
+    }
+  ]);
+
+  assert.deepEqual(result, []);
+  await mongo.close();
+});
+
 test('async onError: a rejecting local handler never surfaces as unhandledRejection', async () => {
   const leaked = [];
   const trap = (reason) => leaked.push(reason);

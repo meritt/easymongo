@@ -248,6 +248,31 @@ describe('saveAll', () => {
     assert.deepEqual(await users.saveAll([]), []);
     assert.deepEqual(await users.saveAll(null), []);
   });
+
+  test('non-object entries are dropped, objects survive', async () => {
+    const result = await users.saveAll([{ a: 1 }, 'junk', null, 42, { b: 2 }]);
+    assert.equal(result.length, 2);
+    for (const doc of result) {
+      assert.ok(doc._id instanceof ObjectId);
+    }
+    assert.equal(await users.count(), 2);
+  });
+
+  test('array of only non-object entries returns [] without inserting', async () => {
+    assert.deepEqual(await users.saveAll(['junk', 42, null]), []);
+    assert.equal(await users.count(), 0);
+  });
+
+  test('caller-supplied _id survives the happy path', async () => {
+    const id = users.oid();
+    const result = await users.saveAll([
+      { _id: id, name: 'pinned' },
+      { name: 'auto' }
+    ]);
+    assert.equal(result.length, 2);
+    const pinned = result.find((d) => d.name === 'pinned');
+    assert.equal(pinned._id, id);
+  });
 });
 
 describe('update', () => {
@@ -394,6 +419,41 @@ describe('empty filter guard', () => {
   test('remove with explicit query still works (control)', async () => {
     await users.saveAll([{ name: 'A' }, { name: 'B' }]);
     assert.equal(await users.remove({ name: 'A' }), true);
+    assert.equal(await users.count(), 1);
+  });
+
+  test('filter with only undefined values is rejected (update)', async () => {
+    await users.saveAll([{ name: 'A' }, { name: 'B' }]);
+    // {name: undefined} would serialize to {name: null}, which matches docs
+    // where the field is missing — effectively an empty filter.
+    const result = await users.update(
+      { name: undefined },
+      { $set: { url: 'x' } }
+    );
+    assert.equal(result, false);
+    const all = await users.find();
+    for (const doc of all) {
+      assert.equal(doc.url, undefined);
+    }
+  });
+
+  test('filter with only undefined values is rejected (remove)', async () => {
+    await users.saveAll([{ name: 'A' }, { other: 1 }]);
+    assert.equal(await users.remove({ name: undefined }), false);
+    assert.equal(await users.count(), 2);
+  });
+
+  test('filter mixing undefined and defined keys still works', async () => {
+    await users.saveAll([{ name: 'A' }, { name: 'B' }]);
+    assert.equal(await users.remove({ name: 'A', ghost: undefined }), true);
+    assert.equal(await users.count(), 1);
+  });
+
+  test('null-prototype filter is accepted', async () => {
+    await users.saveAll([{ name: 'A' }, { name: 'B' }]);
+    const filter = Object.create(null);
+    filter.name = 'A';
+    assert.equal(await users.remove(filter), true);
     assert.equal(await users.count(), 1);
   });
 
@@ -591,6 +651,20 @@ describe('saveAll partial recovery', () => {
     assert.equal(captured[0].ctx.collection, COLLECTION);
 
     await local.close();
+  });
+
+  test('partial recovery preserves a caller-supplied _id', async () => {
+    const first = await users.save({ name: 'X' });
+    const id = users.oid();
+
+    const result = await users.saveAll([
+      { _id: first._id, name: 'dupe' },
+      { _id: id, name: 'B' }
+    ]);
+
+    assert.equal(result.length, 1);
+    assert.equal(result[0].name, 'B');
+    assert.equal(result[0]._id.toString(), id.toString());
   });
 
   test('all conflict: returns []', async () => {

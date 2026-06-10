@@ -282,6 +282,20 @@ describe('ensureIndexes', () => {
     await dropAllNonId();
   });
 
+  test('hostile getter on an entry is skipped, the rest are processed', async () => {
+    const names = await items.ensureIndexes([
+      {
+        get key() {
+          throw new Error('hostile key getter');
+        }
+      },
+      { key: { district: 1 } }
+    ]);
+
+    assert.equal(names.length, 1);
+    assert.match(names[0], /district/);
+  });
+
   test('per-spec onError routes the conflict locally', async () => {
     let clientCalled = 0;
     const local = new MongoClient(
