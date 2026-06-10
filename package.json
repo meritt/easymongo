@@ -22,6 +22,7 @@
     "lib"
   ],
   "type": "module",
+  "sideEffects": false,
   "exports": "./lib/index.js",
   "scripts": {
     "lint": "oxlint",
@@ -34,10 +35,11 @@
     "mongodb": "^7.2"
   },
   "devDependencies": {
-    "oxfmt": "^0.47.0",
-    "oxlint": "^1.62.0"
+    "oxfmt": "^0.54.0",
+    "oxlint": "^1.69.0"
   },
   "engines": {
-    "node": ">=24.14"
-  }
+    "node": ">=24.16"
+  },
+  "packageManager": "pnpm@11.5.2"
 }
