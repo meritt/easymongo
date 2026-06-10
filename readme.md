@@ -93,7 +93,7 @@ new MongoClient(server, options?)
 
 Every async method except `findById` accepts `options.signal: AbortSignal` and `options.timeout: ms` for cancellation (see [AbortSignal and timeout](#abortsignal-and-timeout)) and a per-operation `options.onError` reporter (see [Observability](#observability)); for `ensureIndexes`, pass them inside each entry's `options`. `oid(value?)` is synchronous: it coerces a valid 24-char hex string to `ObjectId`, mints a fresh one for nullish input, and returns anything else untouched.
 
-`save` inserts when `_id` is absent and replaces via `upsert` when present. `saveAll` delegates to `insertMany`; non-object entries are dropped silently.
+`save` inserts when `_id` is absent and replaces via `upsert` when present. Documents passed to `save`/`saveAll` get the same `id` → `_id` alias rewrite as queries — a top-level `id` field never reaches the database as a literal field. `saveAll` delegates to an unordered `insertMany`; non-object entries are dropped silently, and on partial failure (e.g. one entry hits a duplicate key) it resolves to the successfully inserted subset instead of `[]`. Non-object input to `save` and non-array input to `saveAll` are rejected and reported, like every other validation reject.
 
 `count({})` short-circuits to `estimatedDocumentCount`, which reads the cached collection size without a full scan. Numbers may be slightly off on sharded collections with orphans or after an unclean shutdown, but the path is roughly two orders of magnitude faster.
 
@@ -188,6 +188,10 @@ await users.find({
 ```
 
 Strings that are not valid 24-character hex pass through unchanged, so numeric and UUID `_id` schemes keep working.
+
+`findById`/`removeById` reject `null`, `undefined`, and plain-object ids before the driver sees them (reported as `Invalid id rejected`): an operator object like `{ $ne: null }` smuggled from request input would otherwise match — or delete — an arbitrary document. Use `findOne({ _id: { ... } })` for intentional operator queries.
+
+Apart from this id normalization, query objects are passed to the driver **unsanitized** — that is the point of a thin wrapper. Never feed raw request input (`req.body`, `req.query`) into a query position; validate and build the filter yourself.
 
 ## Observability
 
