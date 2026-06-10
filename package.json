@@ -32,7 +32,7 @@
     "coverage": "mkdir -p coverage && node --expose-gc --test --experimental-test-coverage --test-coverage-lines=97 --test-coverage-branches=93 --test-coverage-functions=93 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.js"
   },
   "dependencies": {
-    "mongodb": "^7.2"
+    "mongodb": "^7.3.0"
   },
   "devDependencies": {
     "oxfmt": "^0.54.0",
@@ -41,5 +41,5 @@
   "engines": {
     "node": ">=24.16"
   },
-  "packageManager": "pnpm@11.5.2"
+  "packageManager": "pnpm@11.5.3"
 }
