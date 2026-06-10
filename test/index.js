@@ -638,18 +638,44 @@ describe('read options', () => {
     assert.equal(result[0].secret, undefined);
   });
 
-  test('fields array with no usable entries fails closed (whitelist cannot be disabled)', async () => {
+  test('fields array with no usable entries fails closed (whitelist cannot be disabled)', async (t) => {
     await users.save({ name: 'Alexey', secret: 'shh' });
 
+    const native = await mongo.open(COLLECTION);
+    const original = native.find.bind(native);
+    const projections = [];
+    t.mock.method(native, 'find', (filter, opts) => {
+      projections.push(opts?.projection);
+      return original(filter, opts);
+    });
+
+    // `['__proto__']` must collapse to `{_id: 1}`, not `{__proto__: 1}`: the
+    // null-prototype projection object would otherwise turn `__proto__` into a
+    // real own key, leaking a stored `__proto__` field past the whitelist.
     const smuggled = await users.find({}, { fields: ['__proto__'] });
     assert.equal(smuggled.length, 1);
     assert.equal(smuggled[0].name, undefined);
     assert.equal(smuggled[0].secret, undefined);
+    assert.deepEqual({ ...projections.at(-1) }, { _id: 1 });
 
     const junk = await users.find({}, { fields: [42, null] });
     assert.equal(junk.length, 1);
     assert.equal(junk[0].name, undefined);
     assert.equal(junk[0].secret, undefined);
+    assert.deepEqual({ ...projections.at(-1) }, { _id: 1 });
+  });
+
+  test('a stored __proto__ field is not leaked by the array whitelist', async () => {
+    // A document with a field literally named `__proto__` (own key, not the
+    // prototype slot) is the only case where `{__proto__: 1}` and `{_id: 1}`
+    // diverge — prove the whitelist fails closed against it.
+    const native = await mongo.open(COLLECTION);
+    await native.insertOne({ name: 'Alexey', ['__proto__']: 'leak' });
+
+    const result = await users.find({}, { fields: ['__proto__'] });
+    assert.equal(result.length, 1);
+    assert.equal(Object.hasOwn(result[0], '__proto__'), false);
+    assert.equal(result[0].name, undefined);
   });
 
   test('batchSize is forwarded to the driver', async (t) => {
