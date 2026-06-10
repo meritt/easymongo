@@ -158,6 +158,24 @@ describe('each — lifecycle', () => {
     await cursor[Symbol.asyncDispose]();
     // No throw, no escaped error.
   });
+
+  test('Symbol.asyncDispose closes a live mid-iteration cursor', async () => {
+    // More docs than one server batch so the cursor stays open after a single
+    // next() — dispose must close a genuinely live cursor, not an empty set.
+    await seed(300);
+    const cursor = items.each({});
+    const it = cursor[Symbol.asyncIterator]();
+
+    const first = await it.next();
+    assert.equal(first.done, false);
+
+    await cursor[Symbol.asyncDispose]();
+
+    // next() on a disposed cursor ends instead of throwing; the client stays usable.
+    const second = await it.next();
+    assert.equal(second.done, true);
+    assert.equal(await items.count(), 300);
+  });
 });
 
 describe('each — fail-silent', () => {
@@ -236,6 +254,61 @@ describe('each — concurrent iteration on the same cursor', () => {
     assert.equal(first.length, 15);
     assert.equal(second.length, 15);
   });
+});
+
+describe('each — abandoned iterators are reclaimed by GC', () => {
+  // Requires --expose-gc (the test/coverage scripts pass it); skipped otherwise.
+  test(
+    'GC closes cursors of iterators abandoned mid-iteration',
+    { skip: !globalThis.gc },
+    async () => {
+      // More docs than one server batch (~101) so a single next() leaves the
+      // cursor live and pinned server-side instead of exhausting it at once.
+      await seed(500);
+      // Ensure the native client (and its active-cursor set) exists.
+      await items.count();
+      const activeCursors = mongo.client?.s?.activeCursors;
+
+      async function abandon() {
+        const it = items.each({})[Symbol.asyncIterator]();
+        await it.next(); // opens the cursor, suspends at the first yield
+        // `it` goes out of scope with no break/return/dispose
+      }
+
+      for (let i = 0; i < 25; i = i + 1) {
+        // oxlint-disable-next-line no-await-in-loop
+        await abandon();
+      }
+
+      if (activeCursors) {
+        assert.ok(
+          activeCursors.size >= 15,
+          `cursors stay pinned before GC (size ${activeCursors.size})`
+        );
+      }
+
+      // Force GC, then let the FinalizationRegistry callbacks — and the async
+      // cursor.close() they trigger — run.
+      const tick = (ms) =>
+        new Promise((resolve) => {
+          setTimeout(resolve, ms);
+        });
+      for (let i = 0; i < 5; i = i + 1) {
+        globalThis.gc();
+        // oxlint-disable-next-line no-await-in-loop
+        await tick(10);
+      }
+      await tick(50);
+
+      if (activeCursors) {
+        assert.ok(
+          activeCursors.size <= 2,
+          `cursors released after GC (size ${activeCursors.size})`
+        );
+      }
+      assert.equal(await items.count(), 500);
+    }
+  );
 });
 
 describe('each — local onError', () => {

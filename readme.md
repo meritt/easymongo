@@ -243,7 +243,7 @@ if (failure) {
 }
 ```
 
-`findById` has no options slot — use `findOne({ _id: id }, { onError })`. For `ensureIndexes`, pass `onError` inside each spec's `options`. A throwing local handler is caught and ignored, same as the client-level one.
+`findById` has no options slot — use `findOne({ _id: id }, { onError })`. For `ensureIndexes`, pass `onError` inside each spec's `options`. A throwing local handler is caught and ignored, same as the client-level one. One caveat for `each()`: the local handler should not capture its own iterator, or an abandoned iterator can never be garbage-collected and its cursor stays pinned until the client is closed.
 
 ## Empty filter protection
 
