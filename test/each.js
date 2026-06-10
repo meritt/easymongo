@@ -337,6 +337,27 @@ describe('each — AbortSignal', () => {
       }
     }
     assert.ok(n >= 5);
+    assert.ok(n < 200, 'abort must stop iteration early');
     await local.close();
+  });
+
+  test('options.timeout collapses iteration to an empty result and reports', async () => {
+    await seed(3);
+    const captured = [];
+
+    // $where burns >timeout per document server-side, so the deadline armed by
+    // the wrapper fires mid-query.
+    const SLOW_WHERE =
+      'var t = new Date(); while (new Date() - t < 120) {} return true;';
+    const out = [];
+    for await (const doc of items.each(
+      { $where: SLOW_WHERE },
+      { timeout: 30, onError: (err, ctx) => captured.push(ctx.method) }
+    )) {
+      out.push(doc);
+    }
+
+    assert.deepEqual(out, []);
+    assert.deepEqual(captured, ['each']);
   });
 });

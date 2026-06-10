@@ -89,9 +89,9 @@ new MongoClient(server, options?)
 | `removeById(id, options?)`          | `boolean`                              | `false`            |
 | `createIndex(spec, options?)`       | `string \| null`                       | `null`             |
 | `ensureIndexes(specs)`              | `string[]`                             | `[]`               |
-| `oid(value?)`                       | `ObjectId`                             | fresh `ObjectId()` |
+| `oid(value?)`                       | `ObjectId \| input`                    | fresh `ObjectId()` |
 
-All async methods accept `options.signal: AbortSignal` for cancellation. See [AbortSignal](#abortsignal).
+Every async method except `findById` accepts `options.signal: AbortSignal` and `options.timeout: ms` for cancellation (see [AbortSignal and timeout](#abortsignal-and-timeout)) and a per-operation `options.onError` reporter (see [Observability](#observability)); for `ensureIndexes`, pass them inside each entry's `options`. `oid(value?)` is synchronous: it coerces a valid 24-char hex string to `ObjectId`, mints a fresh one for nullish input, and returns anything else untouched.
 
 `save` inserts when `_id` is absent and replaces via `upsert` when present. `saveAll` delegates to `insertMany`; non-object entries are dropped silently.
 
@@ -262,11 +262,11 @@ await pages.update(
 );
 ```
 
-Only `arrayFilters` and `signal` are forwarded; other driver-level update options are ignored. Use `client.open(name)` directly if you need them.
+Only `arrayFilters`, `signal`, and `timeout` are forwarded; other driver-level update options are ignored. Use `client.open(name)` directly if you need them.
 
-## AbortSignal
+## AbortSignal and timeout
 
-Every async method (except `findById`) accepts `options.signal` and forwards it to the driver. Pre-aborted signals collapse to the empty default and emit through `onError`:
+Every async method except `findById` accepts `options.signal` and forwards it to the driver (for `ensureIndexes`, inside each entry's `options`). Pre-aborted signals collapse to the empty default and emit through `onError`:
 
 ```js
 const ctrl = new AbortController();
@@ -274,6 +274,13 @@ setTimeout(() => ctrl.abort(), 200);
 
 const docs = await users.find({}, { signal: ctrl.signal });
 // [] if the operation was aborted before completion
+```
+
+`options.timeout: ms` arms a per-operation deadline (`AbortSignal.timeout` under the hood) and composes with a caller signal via `AbortSignal.any` — the operation aborts when either fires. Non-positive and non-numeric values are ignored.
+
+```js
+const docs = await users.find({}, { timeout: 500, signal: ctrl.signal });
+// [] when the deadline fires first, [] when the caller aborts first
 ```
 
 Aborting mid-iteration of `each()` ends the loop quietly and reports through `onError`.
