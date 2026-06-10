@@ -29,7 +29,7 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "test": "node --test test/*.js",
-    "coverage": "mkdir -p coverage && node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.js"
+    "coverage": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-lines=97 --test-coverage-branches=93 --test-coverage-functions=93 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.js"
   },
   "dependencies": {
     "mongodb": "^7.2"
