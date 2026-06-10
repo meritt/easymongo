@@ -231,6 +231,12 @@ describe('distinct', () => {
     const result = await users.distinct('tag', { g: 1 });
     assert.deepEqual(result.sort(), ['a', 'b']);
   });
+
+  test('non-array driver result collapses to []', async (t) => {
+    const native = await mongo.open(COLLECTION);
+    t.mock.method(native, 'distinct', async () => null);
+    assert.deepEqual(await users.distinct('tag'), []);
+  });
 });
 
 describe('save', () => {
@@ -264,6 +270,12 @@ describe('save', () => {
     assert.equal(result._id.toString(), hex);
     assert.equal(result.id, undefined);
     assert.equal(await users.count(), 1);
+  });
+
+  test('missing insertedId from the driver collapses to null', async (t) => {
+    const native = await mongo.open(COLLECTION);
+    t.mock.method(native, 'insertOne', async () => ({}));
+    assert.equal(await users.save({ name: 'ghost' }), null);
   });
 });
 
@@ -326,6 +338,12 @@ describe('update', () => {
     for (const doc of all) {
       assert.equal(doc.url, 'simonenko.xyz');
     }
+  });
+
+  test('false when matched but nothing modified', async () => {
+    await users.save({ name: 'Alexey', url: 'x' });
+    const ok = await users.update({ name: 'Alexey' }, { $set: { url: 'x' } });
+    assert.equal(ok, false);
   });
 });
 
@@ -495,9 +513,9 @@ describe('empty filter guard', () => {
       { dbname: 'test' },
       { onError: (err, ctx) => captured.push({ err, ctx }) }
     );
-    const localUsers = local.collection(COLLECTION);
+    const col = local.collection(COLLECTION);
 
-    await localUsers.update(null, { $set: { x: 1 } });
+    await col.update(null, { $set: { x: 1 } });
 
     assert.equal(captured.length, 1);
     assert.equal(captured[0].ctx.method, 'update');
@@ -513,9 +531,9 @@ describe('empty filter guard', () => {
       { dbname: 'test' },
       { onError: (err, ctx) => captured.push({ err, ctx }) }
     );
-    const localUsers = local.collection(COLLECTION);
+    const col = local.collection(COLLECTION);
 
-    await localUsers.remove({});
+    await col.remove({});
 
     assert.equal(captured.length, 1);
     assert.equal(captured[0].ctx.method, 'remove');
@@ -534,9 +552,9 @@ describe('empty filter guard', () => {
         onError: (err, ctx) => captured.push({ err, ctx })
       }
     );
-    const localUsers = local.collection(COLLECTION);
+    const col = local.collection(COLLECTION);
 
-    const ok = await localUsers.remove(null);
+    const ok = await col.remove(null);
     assert.equal(ok, false);
     assert.equal(captured.length, 0);
 
@@ -702,9 +720,9 @@ describe('saveAll partial recovery', () => {
         onError: (err, ctx) => captured.push({ err, ctx })
       }
     );
-    const localUsers = local.collection(COLLECTION);
+    const col = local.collection(COLLECTION);
 
-    const result = await localUsers.saveAll([
+    const result = await col.saveAll([
       { name: 'A' },
       { _id: first._id, name: 'X-dupe' },
       { name: 'B' }

@@ -121,7 +121,6 @@ describe('each — lifecycle', () => {
   test('await using is safe with no iteration', async () => {
     {
       await using _cursor = items.each({});
-      // Never iterated — dispose still cleans up safely.
     }
     assert.equal(await items.count(), 0);
   });
@@ -156,7 +155,6 @@ describe('each — lifecycle', () => {
     const cursor = items.each({});
     await cursor[Symbol.asyncDispose]();
     await cursor[Symbol.asyncDispose]();
-    // No throw, no escaped error.
   });
 
   test('Symbol.asyncDispose closes a live mid-iteration cursor', async () => {
@@ -236,11 +234,7 @@ describe('each — concurrent iteration on the same cursor', () => {
     const sessionErrors = captured.filter((c) =>
       /session that has ended/i.test(c.err?.message ?? '')
     );
-    assert.equal(
-      sessionErrors.length,
-      0,
-      'no spurious session-ended errors after factory model fix'
-    );
+    assert.equal(sessionErrors.length, 0, 'no spurious session-ended errors');
     await local.close();
   });
 

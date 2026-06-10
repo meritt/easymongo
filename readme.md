@@ -5,7 +5,7 @@
 [![Coverage status][coveralls-image]][coveralls-url]
 [![Dependency status][libraries-image]][libraries-url]
 
-A thin, opinionated wrapper around the official MongoDB Node.js driver. Every public method returns a promise with a fixed resolved type; driver errors are swallowed and replaced with the empty default (`null`, `false`, `[]`, or `0`).
+A thin, opinionated wrapper around the official MongoDB Node.js driver. Every async method resolves to a fixed type; driver errors are swallowed and replaced with the empty default (`null`, `false`, `[]`, or `0`).
 
 ## Requirements
 
@@ -101,7 +101,7 @@ Every async method except `findById` accepts `options.signal: AbortSignal` and `
 
 ## Read options
 
-The second argument to `find`, `findOne`, and `findById`:
+The second argument to `find` and `findOne`:
 
 ```js
 await users.find(
@@ -146,7 +146,9 @@ For long-running iteration, scope the cursor with `await using` so it is closed 
 {
   await using cursor = users.each({ active: true });
   for await (const user of cursor) {
-    if (!shouldShip(user)) break;
+    if (!shouldShip(user)) {
+      break;
+    }
     await ship(user);
   }
 }
@@ -190,6 +192,7 @@ await users.find({ _id: { $in: ['4e4e1638c85e808431000003', someObjectId] } }); 
 await users.find({
   _id: { $nin: ['4e4e1638c85e808431000003', '4e4e1638c85e808431000004'] }
 }); // same for $nin
+await users.find({ _id: { $gt: '4e4e1638c85e808431000003' } }); // scalar comparisons too: $eq/$ne/$gt/$gte/$lt/$lte
 ```
 
 Strings that are not valid 24-character hex pass through unchanged, so numeric and UUID `_id` schemes keep working.

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { describe, test, before, after } from 'node:test';
+import { describe, test, before, after, beforeEach } from 'node:test';
 
 import { MongoClient } from '../lib/index.js';
 
@@ -16,7 +16,13 @@ async function listIndexNames() {
 
 async function dropAllNonId() {
   const native = await mongo.open(COLLECTION);
-  const idx = await native.indexes();
+  let idx;
+  try {
+    idx = await native.indexes();
+  } catch {
+    // The collection does not exist yet (first beforeEach) — nothing to drop.
+    return;
+  }
   await Promise.all(
     idx.filter((i) => i.name !== '_id_').map((i) => native.dropIndex(i.name))
   );
@@ -26,6 +32,10 @@ before(async () => {
   const native = await mongo.open(COLLECTION);
   await native.deleteMany({});
 });
+
+// Cleanup runs BEFORE each test, not at the end of the test body: a mid-test
+// assertion failure must not leak indexes into the following tests.
+beforeEach(dropAllNonId);
 
 after(async () => {
   await dropAllNonId();
@@ -41,14 +51,12 @@ describe('createIndex', () => {
     assert.match(name, /uri/);
     const names = await listIndexNames();
     assert.ok(names.includes(name));
-    await dropAllNonId();
   });
 
   test('idempotent: same spec twice returns same name', async () => {
     const a = await items.createIndex({ tag: 1 });
     const b = await items.createIndex({ tag: 1 });
     assert.equal(a, b);
-    await dropAllNonId();
   });
 
   test('returns null and emits on conflicting options for same key', async () => {
@@ -57,20 +65,16 @@ describe('createIndex', () => {
       { dbname: 'test' },
       { onError: (err, ctx) => captured.push({ err, ctx }) }
     );
-    const localItems = local.collection(COLLECTION);
+    const col = local.collection(COLLECTION);
 
-    await localItems.createIndex({ name: 1 }, { unique: true });
-    const conflicting = await localItems.createIndex(
-      { name: 1 },
-      { unique: false }
-    );
+    await col.createIndex({ name: 1 }, { unique: true });
+    const conflicting = await col.createIndex({ name: 1 }, { unique: false });
 
     assert.equal(conflicting, null);
     assert.equal(captured.length, 1);
     assert.equal(captured[0].ctx.method, 'createIndex');
     assert.equal(captured[0].ctx.collection, COLLECTION);
 
-    await dropAllNonId();
     await local.close();
   });
 
@@ -80,10 +84,10 @@ describe('createIndex', () => {
       { dbname: 'test' },
       { onError: (err, ctx) => captured.push({ err, ctx }) }
     );
-    const localItems = local.collection(COLLECTION);
+    const col = local.collection(COLLECTION);
 
-    assert.equal(await localItems.createIndex(null), null);
-    assert.equal(await localItems.createIndex(42), null);
+    assert.equal(await col.createIndex(null), null);
+    assert.equal(await col.createIndex(42), null);
     assert.equal(captured.length, 2);
     for (const c of captured) {
       assert.equal(c.ctx.method, 'createIndex');
@@ -189,7 +193,6 @@ describe('ensureIndexes', () => {
     for (const n of names) {
       assert.ok(all.includes(n));
     }
-    await dropAllNonId();
   });
 
   test('idempotent on second invocation', async () => {
@@ -202,7 +205,6 @@ describe('ensureIndexes', () => {
       { key: { tags: 1 } }
     ]);
     assert.deepEqual(first.sort(), second.sort());
-    await dropAllNonId();
   });
 
   test('skips conflicts but continues with the rest', async () => {
@@ -211,11 +213,11 @@ describe('ensureIndexes', () => {
       { dbname: 'test' },
       { onError: (err, ctx) => captured.push({ err, ctx }) }
     );
-    const localItems = local.collection(COLLECTION);
+    const col = local.collection(COLLECTION);
 
-    await localItems.createIndex({ slug: 1 }, { unique: true });
+    await col.createIndex({ slug: 1 }, { unique: true });
 
-    const names = await localItems.ensureIndexes([
+    const names = await col.ensureIndexes([
       { key: { slug: 1 }, options: { unique: false } }, // conflicts → skip
       { key: { kind: 1 } } // ok → created
     ]);
@@ -225,7 +227,6 @@ describe('ensureIndexes', () => {
     assert.equal(captured.length, 1);
     assert.equal(captured[0].ctx.method, 'createIndex');
 
-    await dropAllNonId();
     await local.close();
   });
 
@@ -242,11 +243,9 @@ describe('ensureIndexes', () => {
       { dbname: 'test' },
       { onError: (err, ctx) => captured.push({ err, ctx }) }
     );
-    const localItems = local.collection(COLLECTION);
+    const col = local.collection(COLLECTION);
 
-    // Two specs targeting the same key with conflicting options. The first
-    // (unique: true) must win; the second is reported and skipped.
-    const names = await localItems.ensureIndexes([
+    const names = await col.ensureIndexes([
       { key: { handle: 1 }, options: { unique: true } },
       { key: { handle: 1 }, options: { unique: false } }
     ]);
@@ -267,7 +266,6 @@ describe('ensureIndexes', () => {
     assert.equal(captured.length, 1);
     assert.equal(captured[0].ctx.method, 'createIndex');
 
-    await dropAllNonId();
     await local.close();
   });
 
@@ -279,7 +277,6 @@ describe('ensureIndexes', () => {
     ]);
     assert.equal(names.length, 1);
     assert.match(names[0], /city/);
-    await dropAllNonId();
   });
 
   test('hostile getter on an entry is skipped, the rest are processed', async () => {
