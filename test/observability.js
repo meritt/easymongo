@@ -448,3 +448,32 @@ test('async onError: a rejecting client-level handler never surfaces as unhandle
     process.off('unhandledRejection', trap);
   }
 });
+
+test('local onError: validation rejects route to the local handler', async () => {
+  let clientCalled = 0;
+  const mongo = new MongoClient(UNREACHABLE, {
+    onError: () => {
+      clientCalled = clientCalled + 1;
+    }
+  });
+  const col = mongo.collection('users');
+
+  const captured = [];
+  const onError = (err, ctx) => captured.push(`${ctx.method}: ${err.message}`);
+
+  assert.equal(await col.update({}, { $set: { a: 1 } }, { onError }), false);
+  assert.equal(await col.remove(null, { onError }), false);
+  assert.equal(await col.removeById(null, { onError }), false);
+  assert.equal(await col.save('nope', { onError }), null);
+  assert.deepEqual(await col.saveAll('nope', { onError }), []);
+
+  assert.deepEqual(captured, [
+    'update: Empty filter rejected',
+    'remove: Empty filter rejected',
+    'removeById: Invalid id rejected',
+    'save: Invalid document rejected',
+    'saveAll: Invalid documents rejected'
+  ]);
+  assert.equal(clientCalled, 0);
+  await mongo.close();
+});

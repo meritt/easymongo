@@ -149,6 +149,21 @@ describe('findById', () => {
     assert.equal(result.name, 'Alexey');
     assert.equal(result.secret, undefined);
   });
+
+  test('rejects nullish id', async () => {
+    await users.save({ name: 'Alexey' });
+    assert.equal(await users.findById(undefined), null);
+    assert.equal(await users.findById(null), null);
+  });
+
+  test('rejects plain-object id (operator smuggling)', async () => {
+    await users.save({ name: 'Alexey' });
+    assert.equal(await users.findById({ $ne: null }), null);
+    assert.equal(
+      await users.findById({ id: '4e4e1638c85e808431000003' }),
+      null
+    );
+  });
 });
 
 describe('exists', () => {
@@ -207,6 +222,16 @@ describe('save', () => {
     assert.equal(await users.save(null), null);
     assert.equal(await users.save('not a doc'), null);
     assert.equal(await users.save(42), null);
+  });
+
+  test('aliases top-level id field to _id', async () => {
+    const hex = '4e4e1638c85e808431000003';
+    const result = await users.save({ id: hex, name: 'Alexey' });
+    assert.ok(result);
+    assert.ok(result._id instanceof ObjectId);
+    assert.equal(result._id.toString(), hex);
+    assert.equal(result.id, undefined);
+    assert.equal(await users.count(), 1);
   });
 });
 
@@ -273,6 +298,42 @@ describe('removeById', () => {
   test('accepts ObjectId', async () => {
     const created = await users.save({ name: 'Alexey' });
     assert.equal(await users.removeById(created._id), true);
+  });
+
+  test('rejects nullish id', async () => {
+    await users.save({ name: 'Alexey' });
+    assert.equal(await users.removeById(undefined), false);
+    assert.equal(await users.removeById(null), false);
+    assert.equal(await users.count(), 1);
+  });
+
+  test('rejects plain-object id (operator smuggling)', async () => {
+    await users.save({ name: 'Alexey' });
+    assert.equal(await users.removeById({ $ne: null }), false);
+    assert.equal(
+      await users.removeById({ $gte: users.oid('0'.repeat(24)) }),
+      false
+    );
+    assert.equal(await users.count(), 1);
+  });
+
+  test('onError receives ctx for rejected id', async () => {
+    const captured = [];
+    const local = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err, ctx) => captured.push({ err, ctx }) }
+    );
+    const col = local.collection(COLLECTION);
+
+    await col.removeById({ $ne: null });
+    await col.findById(undefined);
+
+    assert.equal(captured.length, 2);
+    assert.equal(captured[0].ctx.method, 'removeById');
+    assert.equal(captured[1].ctx.method, 'findById');
+    assert.match(captured[0].err.message, /invalid id/i);
+
+    await local.close();
   });
 });
 
