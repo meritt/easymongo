@@ -151,7 +151,7 @@ The returned object is a factory — each `for await` opens its own cursor, so t
 
 `each()` exposes only `Symbol.asyncIterator` and `Symbol.asyncDispose`. There is no `close()` method or `cancel()` on the returned object — disposal is the only way to terminate iteration explicitly.
 
-Errors during open or iteration end the loop quietly and report through `onError` (or `console.error`) with `ctx.method === 'each'`. Cursor close errors are reported with `ctx.method === 'each.close'`.
+Errors during open or iteration end the loop quietly and report through the local `options.onError` when one was passed, otherwise through the client-level `onError` (or `console.error`), with `ctx.method === 'each'`. Cursor close errors are reported with `ctx.method === 'each.close'`.
 
 ## Indexes
 
@@ -201,9 +201,43 @@ new MongoClient(url, { silent: true }); // suppress all internal logging
 new MongoClient(url, { onError: (err, ctx) => console.error(ctx.method, err) }); // custom handler
 ```
 
+`silent: true` mutes the whole client-level channel — including a custom client-level `onError`. A per-operation `options.onError` is the one thing it does not suppress (see below).
+
 The `ctx` passed to `onError` has the shape `{ method, collection?, query? }`, e.g. `{ method: 'findOne', collection: 'users', query: { email: 'a@b.c' } }`.
 
-A throwing `onError` is itself caught and ignored; a broken reporter cannot take down the caller.
+Mind what reaches your logs: `ctx.query` is the original query object and may carry PII or secrets, and driver error messages can embed document values too (a duplicate-key `E11000` includes the offending value). The default `console.error` reporter prints only `[easymongo] <collection>.<method> failed:` plus the error — never `ctx.query` — but a custom `onError` owns redaction of everything it forwards.
+
+A throwing `onError` is itself caught and ignored, and a rejected promise from an `async` handler is defused the same way; a broken reporter cannot take down the caller (the rejection is silently dropped, so do your own catching inside async handlers if you care about their failures).
+
+### Per-operation `onError`
+
+Every method that takes `options` also accepts a local `onError(err, ctx)`. When a function is passed, it takes ownership of the error for that one call: the client-level `onError` and the default `console.error` stay silent, and `silent: true` does not suppress it — an explicitly passed callback is a requested channel, not internal logging.
+
+This is the escape hatch for callers that need to know whether _this particular_ operation failed — no shared state, no races between parallel operations, works with a client configured elsewhere:
+
+```js
+let failure = null;
+const docs = await users.find(query, { onError: (err) => (failure = err) });
+if (failure) {
+  throw failure; // re-raising is the caller's decision, not the library's
+}
+```
+
+The same pattern detects a mid-stream cursor error in `each()`, which otherwise just truncates the iteration:
+
+```js
+let failure = null;
+for await (const doc of users.each(query, {
+  onError: (err) => (failure = err)
+})) {
+  // ...
+}
+if (failure) {
+  throw failure; // the stream was cut short
+}
+```
+
+`findById` has no options slot — use `findOne({ _id: id }, { onError })`. For `ensureIndexes`, pass `onError` inside each spec's `options`. A throwing local handler is caught and ignored, same as the client-level one.
 
 ## Empty filter protection
 

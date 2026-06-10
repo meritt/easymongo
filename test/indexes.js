@@ -91,6 +91,90 @@ describe('createIndex', () => {
 
     await local.close();
   });
+
+  test('local onError alongside driver options: index created, driver options intact', async () => {
+    const captured = [];
+    const name = await items.createIndex(
+      { brand: 1 },
+      { unique: true, onError: (err, ctx) => captured.push(ctx) }
+    );
+
+    assert.equal(typeof name, 'string');
+    assert.equal(captured.length, 0, 'no error expected on success');
+
+    const native = await mongo.open(COLLECTION);
+    const idx = await native.indexes();
+    const created = idx.find((i) => i.name === name);
+    assert.ok(created);
+    assert.equal(created.unique, true, 'driver options survive the strip');
+  });
+
+  test('options containing only onError still create the index', async () => {
+    const captured = [];
+    const name = await items.createIndex(
+      { lone: 1 },
+      { onError: (err, ctx) => captured.push(ctx) }
+    );
+
+    assert.equal(typeof name, 'string');
+    assert.equal(captured.length, 0);
+    const names = await listIndexNames();
+    assert.ok(names.includes(name));
+  });
+
+  test('local onError: conflict routes locally, client handler stays silent', async () => {
+    let clientCalled = 0;
+    const local = new MongoClient(
+      { dbname: 'test' },
+      {
+        onError: () => {
+          clientCalled = clientCalled + 1;
+        }
+      }
+    );
+    const col = local.collection(COLLECTION);
+
+    await col.createIndex({ color: 1 }, { unique: true });
+
+    const captured = [];
+    const conflicting = await col.createIndex(
+      { color: 1 },
+      { unique: false, onError: (err, ctx) => captured.push(ctx) }
+    );
+
+    assert.equal(conflicting, null);
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].method, 'createIndex');
+    assert.equal(captured[0].collection, COLLECTION);
+    assert.equal(clientCalled, 0);
+
+    await local.close();
+  });
+
+  test('local onError: invalid spec rejection routes locally', async () => {
+    let clientCalled = 0;
+    const local = new MongoClient(
+      { dbname: 'test' },
+      {
+        onError: () => {
+          clientCalled = clientCalled + 1;
+        }
+      }
+    );
+    const col = local.collection(COLLECTION);
+
+    const captured = [];
+    assert.equal(
+      await col.createIndex(null, {
+        onError: (err, ctx) => captured.push(ctx.method)
+      }),
+      null
+    );
+
+    assert.deepEqual(captured, ['createIndex']);
+    assert.equal(clientCalled, 0);
+    await local.close();
+  });
 });
 
 describe('ensureIndexes', () => {
@@ -196,5 +280,37 @@ describe('ensureIndexes', () => {
     assert.equal(names.length, 1);
     assert.match(names[0], /city/);
     await dropAllNonId();
+  });
+
+  test('per-spec onError routes the conflict locally', async () => {
+    let clientCalled = 0;
+    const local = new MongoClient(
+      { dbname: 'test' },
+      {
+        onError: () => {
+          clientCalled = clientCalled + 1;
+        }
+      }
+    );
+    const col = local.collection(COLLECTION);
+
+    await col.createIndex({ town: 1 }, { unique: true });
+
+    const captured = [];
+    const names = await col.ensureIndexes([
+      {
+        key: { town: 1 },
+        options: { unique: false, onError: (err, ctx) => captured.push(ctx) }
+      },
+      { key: { street: 1 } }
+    ]);
+
+    assert.equal(names.length, 1);
+    assert.match(names[0], /street/);
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].method, 'createIndex');
+    assert.equal(clientCalled, 0);
+
+    await local.close();
   });
 });
