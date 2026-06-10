@@ -633,6 +633,22 @@ describe('read options', () => {
     assert.equal(junk[0].name, undefined);
     assert.equal(junk[0].secret, undefined);
   });
+
+  test('batchSize is forwarded to the driver', async (t) => {
+    await users.saveAll([{ n: 1 }, { n: 2 }, { n: 3 }]);
+
+    const native = await mongo.open(COLLECTION);
+    const original = native.find.bind(native);
+    let seen = null;
+    t.mock.method(native, 'find', (filter, opts) => {
+      seen = opts;
+      return original(filter, opts);
+    });
+
+    const result = await users.find({}, { batchSize: 2 });
+    assert.equal(result.length, 3);
+    assert.equal(seen?.batchSize, 2);
+  });
 });
 
 describe('oid', () => {
