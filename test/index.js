@@ -578,6 +578,29 @@ describe('read options', () => {
     assert.equal(result[0].n, 2);
     assert.equal(result[1].n, 3);
   });
+
+  test('empty fields array fails closed to an _id-only projection', async () => {
+    await users.save({ name: 'Alexey', secret: 'shh' });
+    const result = await users.find({}, { fields: [] });
+    assert.equal(result.length, 1);
+    assert.ok(result[0]._id instanceof ObjectId);
+    assert.equal(result[0].name, undefined);
+    assert.equal(result[0].secret, undefined);
+  });
+
+  test('fields array with no usable entries fails closed (whitelist cannot be disabled)', async () => {
+    await users.save({ name: 'Alexey', secret: 'shh' });
+
+    const smuggled = await users.find({}, { fields: ['__proto__'] });
+    assert.equal(smuggled.length, 1);
+    assert.equal(smuggled[0].name, undefined);
+    assert.equal(smuggled[0].secret, undefined);
+
+    const junk = await users.find({}, { fields: [42, null] });
+    assert.equal(junk.length, 1);
+    assert.equal(junk[0].name, undefined);
+    assert.equal(junk[0].secret, undefined);
+  });
 });
 
 describe('oid', () => {
