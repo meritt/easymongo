@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   test:
@@ -21,8 +21,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ["24.x", "25.x"]
-        mongo-version: ["7.0", "8.0", "8.2"]
+        node-version: ["24.x", "26.x"]
+        mongo-version: ["7.0", "8.0", "8.2", "8.3"]
+        include:
+          - node-version: "24.x"
+            mongo-version: "8.3"
+            coverage: true
 
     services:
       mongo:
@@ -38,10 +42,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - uses: pnpm/action-setup@v6
-        with:
-          version: 10
 
       - uses: actions/setup-node@v6
         with:
@@ -49,17 +53,20 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec oxlint --format=github
+      - run: pnpm lint --format=github
       - run: pnpm format:check
-      - run: pnpm test
+
+      - if: ${{ !matrix.coverage }}
+        run: pnpm test
 
       - name: Coverage
-        if: matrix.node-version == '24.x' && matrix.mongo-version == '8.2'
+        if: matrix.coverage
         run: pnpm coverage
 
       - name: Upload coverage to Coveralls
-        if: matrix.node-version == '24.x' && matrix.mongo-version == '8.2'
+        if: matrix.coverage
         uses: coverallsapp/github-action@v2
         with:
           file: coverage/lcov.info
           format: lcov
+          fail-on-error: false
