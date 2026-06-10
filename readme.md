@@ -110,10 +110,13 @@ await users.find(
     limit: 10,
     skip: 0,
     sort: { name: 1 },
+    batchSize: 100,
     fields: ['name', 'email']
   }
 );
 ```
+
+`limit`, `skip`, `sort`, and `batchSize` pass through to the driver (`findOne` takes no `limit` or `batchSize` — it always fetches a single document; `batchSize` bounds how many documents each cursor fetch may buffer, which matters for `each()` over large documents).
 
 Projection accepts three forms:
 
@@ -129,7 +132,7 @@ The array form fails closed: it always produces a projection. Non-string entries
 
 ## Streaming reads
 
-`each(query?, options?)` returns a lazy iterable that opens a cursor on first iteration and closes it when iteration ends. It accepts the same options as `find` (`limit`, `skip`, `sort`, `fields`, `projection`, `signal`).
+`each(query?, options?)` returns a lazy iterable that opens a cursor on first iteration and closes it when iteration ends. It accepts the same options as `find` (`limit`, `skip`, `sort`, `fields`, `projection`, `batchSize`, `signal`, `timeout`, `onError`).
 
 ```js
 for await (const user of users.each({ active: true })) {
