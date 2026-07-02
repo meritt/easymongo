@@ -120,6 +120,20 @@ describe('count', () => {
     assert.equal(n, 0);
   });
 
+  test('$where nested arbitrarily deep still collapses to 0, no scan', async () => {
+    await users.saveAll([{ name: 'A' }, { name: 'B' }]);
+
+    // hasWhere() detects this via an iterative traversal, not a fixed depth
+    // cap - a depth-limited check would treat sufficiently deep nesting as
+    // "safe" and let the vulnerable scan fallback run.
+    let filter = { $where: 'true' };
+    for (let i = 0; i < 20; i = i + 1) {
+      filter = { $and: [filter] };
+    }
+
+    assert.equal(await users.count(filter), 0);
+  });
+
   test('falls back for Location* uassert codes, and reports the fallback', async (t) => {
     const captured = [];
     const local = new MongoClient(
