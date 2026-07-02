@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, test, before, after, beforeEach } from 'node:test';
 
 import { MongoClient } from '../lib/index.js';
+import { SLOW_WHERE } from './helpers.js';
 
 const COLLECTION = `easymongo_each_${randomUUID()}`;
 const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
@@ -114,7 +115,6 @@ describe('each — lifecycle', () => {
       }
     }
     assert.equal(count, 5);
-    // Subsequent operation on the same client must still work.
     assert.equal(await items.count(), 20);
   });
 
@@ -412,10 +412,6 @@ describe('each — AbortSignal', () => {
     await seed(3);
     const captured = [];
 
-    // $where burns >timeout per document server-side, so the deadline armed by
-    // the wrapper fires mid-query.
-    const SLOW_WHERE =
-      'var t = new Date(); while (new Date() - t < 120) {} return true;';
     const out = [];
     for await (const doc of items.each(
       { $where: SLOW_WHERE },
@@ -432,10 +428,6 @@ describe('each — AbortSignal', () => {
     await seed(3);
     const captured = [];
 
-    // $where burns >timeout per document server-side, so whichever mechanism
-    // fires first aborts mid-query - both are live, not one pre-fired.
-    const SLOW_WHERE =
-      'var t = new Date(); while (new Date() - t < 120) {} return true;';
     const ctrl = new AbortController();
     setTimeout(() => ctrl.abort(), 15);
 

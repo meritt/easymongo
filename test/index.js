@@ -851,7 +851,7 @@ describe('connection lifecycle', () => {
     assert.equal(await col.count(), 1);
 
     // Cleanup must happen before close(): wipe() opens the client directly,
-    // which now throws once the client is permanently closed.
+    // which throws once the client is permanently closed.
     await wipe(client, name);
     await client.close();
 

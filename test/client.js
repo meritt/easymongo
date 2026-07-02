@@ -117,9 +117,8 @@ test('reopen attempted synchronously after close() is rejected, original client 
 
   const firstClose = mongo.close();
 
-  // _closed is already true here (set synchronously at the top of close(),
-  // before firstClose's teardown I/O even starts), so this must not get a
-  // fresh client - no orphaned pool left behind.
+  // Same synchronous-close invariant as the test above: the reopen must not
+  // get a fresh client before firstClose's teardown I/O even starts.
   const reopen = mongo.collection('easymongo_close_reopen').count();
 
   await Promise.allSettled([firstClose, reopen]);

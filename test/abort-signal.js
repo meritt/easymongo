@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, test, before, after, beforeEach } from 'node:test';
 
 import { MongoClient } from '../lib/index.js';
+import { SLOW_WHERE } from './helpers.js';
 
 const COLLECTION = `easymongo_abort_${randomUUID()}`;
 
@@ -245,11 +246,6 @@ describe('AbortSignal — caller can detect abort via signal.aborted', () => {
     });
   });
 });
-
-// $where busy-waits per document (mongo evaluates it document-by-document),
-// making the query reliably slower than a small timeout, so the deadline fires.
-const SLOW_WHERE =
-  'var t = Date.now(); while (Date.now() - t < 120) {} return true;';
 
 describe('timeout option — deadline cancels a slow operation', () => {
   test('find collapses to [] when the timeout fires', async () => {

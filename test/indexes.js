@@ -218,8 +218,8 @@ describe('ensureIndexes', () => {
     await col.createIndex({ slug: 1 }, { unique: true });
 
     const names = await col.ensureIndexes([
-      { key: { slug: 1 }, options: { unique: false } }, // conflicts → skip
-      { key: { kind: 1 } } // ok → created
+      { key: { slug: 1 }, options: { unique: false } },
+      { key: { kind: 1 } }
     ]);
 
     assert.equal(names.length, 1);
@@ -271,7 +271,7 @@ describe('ensureIndexes', () => {
 
   test('skips entries without a key', async () => {
     const names = await items.ensureIndexes([
-      { options: { unique: true } }, // no key → skip
+      { options: { unique: true } },
       null,
       { key: { city: 1 } }
     ]);
