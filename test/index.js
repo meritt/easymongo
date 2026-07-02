@@ -316,6 +316,23 @@ describe('save', () => {
     t.mock.method(native, 'insertOne', async () => ({}));
     assert.equal(await users.save({ name: 'ghost' }), null);
   });
+
+  test('rejects operator-object _id (operator smuggling)', async () => {
+    const captured = [];
+    const local = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err, ctx) => captured.push({ err, ctx }) }
+    );
+    const col = local.collection(COLLECTION);
+
+    const result = await col.save({ _id: { $gt: '' }, secret: 'ATTACKER' });
+    assert.equal(result, null);
+    assert.equal(await col.count(), 0);
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].ctx.method, 'save');
+
+    await local.close();
+  });
 });
 
 describe('saveAll', () => {
@@ -355,6 +372,31 @@ describe('saveAll', () => {
     assert.equal(result.length, 2);
     const pinned = result.find((d) => d.name === 'pinned');
     assert.equal(pinned._id, id);
+  });
+
+  test('operator-object _id entries are dropped and reported, others still inserted', async () => {
+    const captured = [];
+    const local = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err, ctx) => captured.push({ err, ctx }) }
+    );
+    const col = local.collection(COLLECTION);
+
+    const result = await col.saveAll([
+      { name: 'A' },
+      { _id: { $gt: '' }, name: 'attacker' },
+      { name: 'B' }
+    ]);
+
+    assert.equal(result.length, 2);
+    assert.deepEqual(
+      result.map((d) => d.name),
+      ['A', 'B']
+    );
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].ctx.method, 'saveAll');
+
+    await local.close();
   });
 });
 
