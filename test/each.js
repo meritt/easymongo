@@ -427,4 +427,31 @@ describe('each — AbortSignal', () => {
     assert.deepEqual(out, []);
     assert.deepEqual(captured, ['each']);
   });
+
+  test('a live signal and a timeout both armed: either wins, no throw, reported once', async () => {
+    await seed(3);
+    const captured = [];
+
+    // $where burns >timeout per document server-side, so whichever mechanism
+    // fires first aborts mid-query - both are live, not one pre-fired.
+    const SLOW_WHERE =
+      'var t = new Date(); while (new Date() - t < 120) {} return true;';
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 15);
+
+    const out = [];
+    for await (const doc of items.each(
+      { $where: SLOW_WHERE },
+      {
+        signal: ctrl.signal,
+        timeout: 30,
+        onError: (err, ctx) => captured.push(ctx.method)
+      }
+    )) {
+      out.push(doc);
+    }
+
+    assert.deepEqual(out, []);
+    assert.deepEqual(captured, ['each']);
+  });
 });

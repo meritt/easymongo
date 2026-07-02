@@ -308,6 +308,29 @@ describe('timeout option — composes and stays out of the way', () => {
     });
   });
 
+  test('a live signal and a timeout both armed: either wins, no throw, reported once', async () => {
+    await withClient(async (mongo, captured) => {
+      const col = mongo.collection(COLLECTION);
+      await col.saveAll([{ n: 1 }, { n: 2 }, { n: 3 }]);
+
+      const ctrl = new AbortController();
+      setTimeout(() => ctrl.abort(), 15);
+
+      const result = await col.find(
+        { $where: SLOW_WHERE },
+        { signal: ctrl.signal, timeout: 30 }
+      );
+
+      assert.deepEqual(result, []);
+      assert.equal(
+        captured.length,
+        1,
+        'reported exactly once, not once per mechanism'
+      );
+      assert.equal(captured[0].ctx.method, 'find');
+    });
+  });
+
   test('non-positive timeout is ignored', async () => {
     await withClient(async (mongo) => {
       const col = mongo.collection(COLLECTION);
