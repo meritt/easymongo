@@ -9,14 +9,14 @@ importers:
   .:
     dependencies:
       mongodb:
-        specifier: ^7.3.0
+        specifier: ^7.4.0
         version: 7.4.0
     devDependencies:
       oxfmt:
         specifier: ^0.57.0
         version: 0.57.0
       oxlint:
-        specifier: ^1.69.0
+        specifier: ^1.72.0
         version: 1.72.0
 
 packages:
