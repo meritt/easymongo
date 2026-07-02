@@ -798,21 +798,29 @@ describe('connection lifecycle', () => {
     assert.equal(first, second);
   });
 
-  test('close() then reuse: old Collection wrapper reconnects cleanly', async () => {
-    const client = new MongoClient({ dbname: 'test' }, { silent: true });
-    const col = client.collection(`easymongo_test_${randomUUID()}`);
+  test('close() then reuse: does not reconnect, collapses to the empty default', async () => {
+    const captured = [];
+    const client = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err, ctx) => captured.push({ err, ctx }) }
+    );
+    const name = `easymongo_test_${randomUUID()}`;
+    const col = client.collection(name);
 
     await col.save({ name: 'before' });
     assert.equal(await col.count(), 1);
 
+    // Cleanup must happen before close(): wipe() opens the client directly,
+    // which now throws once the client is permanently closed.
+    await wipe(client, name);
     await client.close();
 
     const found = await col.findOne({ name: 'before' });
-    assert.ok(found);
-    assert.equal(found.name, 'before');
-
-    await wipe(client, col.name);
-    await client.close();
+    assert.equal(found, null);
+    assert.ok(
+      captured.some((c) => /closed/i.test(c.err.message ?? '')),
+      'reports that the client is closed instead of silently reconnecting'
+    );
   });
 });
 

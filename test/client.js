@@ -16,9 +16,16 @@ test('open/close/open race leaves the second client live', async () => {
   assert.notEqual(mongo.client, null, 'client was clobbered by stale promise');
   assert.notEqual(mongo.db, null, 'db was clobbered by stale promise');
 
-  const after = await users.count();
-  assert.equal(typeof after, 'number');
-  assert.notEqual(mongo.client, null);
+  // close() has now fully settled (awaited above via Promise.allSettled), so
+  // the client is permanently closed: this later, non-racing call must not
+  // silently reconnect - it collapses to the empty default instead.
+  const captured = [];
+  const after = await users.count({}, { onError: (err) => captured.push(err) });
+  assert.equal(after, 0, 'does not reconnect once close() has settled');
+  assert.ok(
+    captured.some((err) => /closed/i.test(err.message)),
+    'reports that the client is closed'
+  );
 
   await mongo.close();
   assert.equal(mongo.client, null);
