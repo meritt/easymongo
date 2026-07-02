@@ -177,6 +177,32 @@ describe('count', () => {
     assert.equal(result, 0);
     assert.equal(findCalls, 0, 'find not called for a non-MongoServerError');
   });
+
+  test('hasWhere() safely skips a non-object entry and a duplicate reference inside $and', async (t) => {
+    const native = await mongo.open(COLLECTION);
+    t.mock.method(native, 'countDocuments', async () => {
+      const err = new Error('synthetic uassert');
+      err.name = 'MongoServerError';
+      err.code = 2;
+      err.codeName = 'BadValue';
+      throw err;
+    });
+    t.mock.method(native, 'find', () => ({
+      async *[Symbol.asyncIterator]() {
+        yield { _id: 1 };
+      },
+      close: async () => {}
+    }));
+
+    const shared = { a: 1 };
+    // A non-object array entry and a duplicate object reference both need to
+    // be skipped safely by hasWhere()'s traversal, without crashing or
+    // treating the duplicate as an infinite loop.
+    const result = await users.count({
+      $and: ['not-an-object', shared, shared]
+    });
+    assert.equal(result, 1);
+  });
 });
 
 describe('find', () => {
