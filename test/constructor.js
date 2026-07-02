@@ -40,6 +40,17 @@ test('respects port override', () => {
   assert.equal(mongo.url, 'mongodb://db.example:27018/test');
 });
 
+test('host is encoded like dbname already is', () => {
+  const mongo = new MongoClient({
+    host: 'evil.com/@attacker.example',
+    dbname: 'test'
+  });
+  assert.equal(
+    mongo.url,
+    'mongodb://evil.com%2F%40attacker.example:27017/test'
+  );
+});
+
 test('throws when dbname is missing in object form', () => {
   assert.throws(
     () => new MongoClient({ host: 'localhost' }),
