@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, test, before, after, beforeEach } from 'node:test';
 
 import { MongoClient } from '../lib/index.js';
+import { SLOW_WHERE } from './helpers.js';
 
 const COLLECTION = `easymongo_abort_${randomUUID()}`;
 
@@ -246,11 +247,6 @@ describe('AbortSignal — caller can detect abort via signal.aborted', () => {
   });
 });
 
-// $where busy-waits per document (mongo evaluates it document-by-document),
-// making the query reliably slower than a small timeout, so the deadline fires.
-const SLOW_WHERE =
-  'var t = Date.now(); while (Date.now() - t < 120) {} return true;';
-
 describe('timeout option — deadline cancels a slow operation', () => {
   test('find collapses to [] when the timeout fires', async () => {
     await withClient(async (mongo, captured) => {
@@ -305,6 +301,29 @@ describe('timeout option — composes and stays out of the way', () => {
       );
       assert.deepEqual(result, []);
       assert.equal(captured[0]?.ctx.method, 'find');
+    });
+  });
+
+  test('a live signal and a timeout both armed: either wins, no throw, reported once', async () => {
+    await withClient(async (mongo, captured) => {
+      const col = mongo.collection(COLLECTION);
+      await col.saveAll([{ n: 1 }, { n: 2 }, { n: 3 }]);
+
+      const ctrl = new AbortController();
+      setTimeout(() => ctrl.abort(), 15);
+
+      const result = await col.find(
+        { $where: SLOW_WHERE },
+        { signal: ctrl.signal, timeout: 30 }
+      );
+
+      assert.deepEqual(result, []);
+      assert.equal(
+        captured.length,
+        1,
+        'reported exactly once, not once per mechanism'
+      );
+      assert.equal(captured[0].ctx.method, 'find');
     });
   });
 

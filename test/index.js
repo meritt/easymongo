@@ -79,23 +79,71 @@ describe('count', () => {
     );
   });
 
-  test('falls back to materialization for $where', async () => {
-    await users.saveAll([
+  test('$where does not trigger the scan fallback; collapses to 0', async () => {
+    const captured = [];
+    const local = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err, ctx) => captured.push({ err, ctx }) }
+    );
+    const col = local.collection(COLLECTION);
+
+    await col.saveAll([
       { name: 'A', age: 20 },
       { name: 'B', age: 35 },
       { name: 'C', age: 40 },
       { name: 'D', age: 25 }
     ]);
+
     // countDocuments rejects $where ($where is disallowed inside its $match
-    // aggregation stage), so the wrapper must fall back to a real query.
-    const n = await users.count({ $where: 'this.age > 30' });
-    assert.equal(n, 2);
+    // aggregation stage). Re-running it via the scan fallback would execute
+    // that JS against every document, so it must collapse to 0 instead of
+    // falling back.
+    const n = await col.count({ $where: 'this.age > 30' });
+    assert.equal(n, 0);
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].ctx.method, 'count');
+
+    await local.close();
   });
 
-  test('falls back for Location* uassert codes', async (t) => {
-    await users.saveAll([{ a: 1 }, { a: 2 }]);
+  test('nested $where (inside $and/$or) also collapses to 0, no scan', async () => {
+    await users.saveAll([
+      { name: 'A', age: 20 },
+      { name: 'B', age: 35 }
+    ]);
 
-    const native = await mongo.open(COLLECTION);
+    // MongoDB validates $where recursively through logical operators, not
+    // just at the top level - a one-level check would miss this shape.
+    const n = await users.count({
+      $and: [{ name: { $exists: true } }, { $or: [{ $where: 'true' }] }]
+    });
+    assert.equal(n, 0);
+  });
+
+  test('$where nested arbitrarily deep still collapses to 0, no scan', async () => {
+    await users.saveAll([{ name: 'A' }, { name: 'B' }]);
+
+    // hasWhere() detects this via an iterative traversal, not a fixed depth
+    // cap - a depth-limited check would treat sufficiently deep nesting as
+    // "safe" and let the vulnerable scan fallback run.
+    let filter = { $where: 'true' };
+    for (let i = 0; i < 20; i = i + 1) {
+      filter = { $and: [filter] };
+    }
+
+    assert.equal(await users.count(filter), 0);
+  });
+
+  test('falls back for Location* uassert codes, and reports the fallback', async (t) => {
+    const captured = [];
+    const local = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err, ctx) => captured.push({ err, ctx }) }
+    );
+    const col = local.collection(COLLECTION);
+    await col.saveAll([{ a: 1 }, { a: 2 }]);
+
+    const native = await local.open(COLLECTION);
     t.mock.method(native, 'countDocuments', async () => {
       const err = new Error('synthetic uassert');
       err.name = 'MongoServerError';
@@ -104,7 +152,12 @@ describe('count', () => {
       throw err;
     });
 
-    assert.equal(await users.count({ a: { $gte: 1 } }), 2);
+    assert.equal(await col.count({ a: { $gte: 1 } }), 2);
+    assert.equal(captured.length, 1, 'fallback trigger was reported');
+    assert.equal(captured[0].ctx.method, 'count');
+    assert.match(captured[0].err.message, /fallback/i);
+
+    await local.close();
   });
 
   test('does not fall back to a scan for non-query-shape errors', async (t) => {
@@ -123,6 +176,32 @@ describe('count', () => {
     const result = await users.count({ a: 1 });
     assert.equal(result, 0);
     assert.equal(findCalls, 0, 'find not called for a non-MongoServerError');
+  });
+
+  test('hasWhere() safely skips a non-object entry and a duplicate reference inside $and', async (t) => {
+    const native = await mongo.open(COLLECTION);
+    t.mock.method(native, 'countDocuments', async () => {
+      const err = new Error('synthetic uassert');
+      err.name = 'MongoServerError';
+      err.code = 2;
+      err.codeName = 'BadValue';
+      throw err;
+    });
+    t.mock.method(native, 'find', () => ({
+      async *[Symbol.asyncIterator]() {
+        yield { _id: 1 };
+      },
+      close: async () => {}
+    }));
+
+    const shared = { a: 1 };
+    // A non-object array entry and a duplicate object reference both need to
+    // be skipped safely by hasWhere()'s traversal, without crashing or
+    // treating the duplicate as an infinite loop.
+    const result = await users.count({
+      $and: ['not-an-object', shared, shared]
+    });
+    assert.equal(result, 1);
   });
 });
 
@@ -277,6 +356,23 @@ describe('save', () => {
     t.mock.method(native, 'insertOne', async () => ({}));
     assert.equal(await users.save({ name: 'ghost' }), null);
   });
+
+  test('rejects operator-object _id (operator smuggling)', async () => {
+    const captured = [];
+    const local = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err, ctx) => captured.push({ err, ctx }) }
+    );
+    const col = local.collection(COLLECTION);
+
+    const result = await col.save({ _id: { $gt: '' }, secret: 'ATTACKER' });
+    assert.equal(result, null);
+    assert.equal(await col.count(), 0);
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].ctx.method, 'save');
+
+    await local.close();
+  });
 });
 
 describe('saveAll', () => {
@@ -316,6 +412,31 @@ describe('saveAll', () => {
     assert.equal(result.length, 2);
     const pinned = result.find((d) => d.name === 'pinned');
     assert.equal(pinned._id, id);
+  });
+
+  test('operator-object _id entries are dropped and reported, others still inserted', async () => {
+    const captured = [];
+    const local = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err, ctx) => captured.push({ err, ctx }) }
+    );
+    const col = local.collection(COLLECTION);
+
+    const result = await col.saveAll([
+      { name: 'A' },
+      { _id: { $gt: '' }, name: 'attacker' },
+      { name: 'B' }
+    ]);
+
+    assert.equal(result.length, 2);
+    assert.deepEqual(
+      result.map((d) => d.name),
+      ['A', 'B']
+    );
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].ctx.method, 'saveAll');
+
+    await local.close();
   });
 });
 
@@ -717,21 +838,29 @@ describe('connection lifecycle', () => {
     assert.equal(first, second);
   });
 
-  test('close() then reuse: old Collection wrapper reconnects cleanly', async () => {
-    const client = new MongoClient({ dbname: 'test' }, { silent: true });
-    const col = client.collection(`easymongo_test_${randomUUID()}`);
+  test('close() then reuse: does not reconnect, collapses to the empty default', async () => {
+    const captured = [];
+    const client = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err, ctx) => captured.push({ err, ctx }) }
+    );
+    const name = `easymongo_test_${randomUUID()}`;
+    const col = client.collection(name);
 
     await col.save({ name: 'before' });
     assert.equal(await col.count(), 1);
 
+    // Cleanup must happen before close(): wipe() opens the client directly,
+    // which throws once the client is permanently closed.
+    await wipe(client, name);
     await client.close();
 
     const found = await col.findOne({ name: 'before' });
-    assert.ok(found);
-    assert.equal(found.name, 'before');
-
-    await wipe(client, col.name);
-    await client.close();
+    assert.equal(found, null);
+    assert.ok(
+      captured.some((c) => /closed/i.test(c.err.message ?? '')),
+      'reports that the client is closed instead of silently reconnecting'
+    );
   });
 });
 
@@ -755,8 +884,13 @@ describe('saveAll partial recovery', () => {
     ]);
 
     assert.equal(result.length, 2);
-    const names = result.map((d) => d.name).sort();
-    assert.deepEqual(names, ['A', 'B']);
+    // No .sort() here on purpose: recover() preserves input-index order, so
+    // this must hold positionally (A came before the conflict, B after it),
+    // not just as a set.
+    assert.deepEqual(
+      result.map((d) => d.name),
+      ['A', 'B']
+    );
     for (const doc of result) {
       assert.ok(doc._id instanceof ObjectId);
     }

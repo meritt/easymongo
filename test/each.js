@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, test, before, after, beforeEach } from 'node:test';
 
 import { MongoClient } from '../lib/index.js';
+import { SLOW_WHERE } from './helpers.js';
 
 const COLLECTION = `easymongo_each_${randomUUID()}`;
 const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
@@ -114,7 +115,6 @@ describe('each — lifecycle', () => {
       }
     }
     assert.equal(count, 5);
-    // Subsequent operation on the same client must still work.
     assert.equal(await items.count(), 20);
   });
 
@@ -412,14 +412,33 @@ describe('each — AbortSignal', () => {
     await seed(3);
     const captured = [];
 
-    // $where burns >timeout per document server-side, so the deadline armed by
-    // the wrapper fires mid-query.
-    const SLOW_WHERE =
-      'var t = new Date(); while (new Date() - t < 120) {} return true;';
     const out = [];
     for await (const doc of items.each(
       { $where: SLOW_WHERE },
       { timeout: 30, onError: (err, ctx) => captured.push(ctx.method) }
+    )) {
+      out.push(doc);
+    }
+
+    assert.deepEqual(out, []);
+    assert.deepEqual(captured, ['each']);
+  });
+
+  test('a live signal and a timeout both armed: either wins, no throw, reported once', async () => {
+    await seed(3);
+    const captured = [];
+
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 15);
+
+    const out = [];
+    for await (const doc of items.each(
+      { $where: SLOW_WHERE },
+      {
+        signal: ctrl.signal,
+        timeout: 30,
+        onError: (err, ctx) => captured.push(ctx.method)
+      }
     )) {
       out.push(doc);
     }

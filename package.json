@@ -1,6 +1,6 @@
 {
   "name": "easymongo",
-  "version": "6.2.0",
+  "version": "6.3.0",
   "description": "Thin, opinionated wrapper around the MongoDB Node.js driver with a fail-silent promise API.",
   "keywords": [
     "easymongo",
@@ -32,14 +32,14 @@
     "coverage": "mkdir -p coverage && node --expose-gc --test --experimental-test-coverage --test-coverage-lines=97 --test-coverage-branches=93 --test-coverage-functions=93 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.js"
   },
   "dependencies": {
-    "mongodb": "^7.3.0"
+    "mongodb": "^7.4.0"
   },
   "devDependencies": {
     "oxfmt": "^0.57.0",
-    "oxlint": "^1.69.0"
+    "oxlint": "^1.72.0"
   },
   "engines": {
     "node": ">=24.16"
   },
-  "packageManager": "pnpm@11.5.3"
+  "packageManager": "pnpm@11.9.0"
 }

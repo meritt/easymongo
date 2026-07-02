@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 
 import { MongoClient } from '../lib/index.js';
@@ -103,6 +104,28 @@ test('default output: console.error is called when neither silent nor onError ar
 
   assert.ok(calls.length >= 1);
   assert.match(String(calls[0][0]), /\[easymongo\] users\.find failed:/);
+
+  await mongo.close();
+});
+
+test('default output: a driver error can carry a field value even though ctx.query is never printed', async (t) => {
+  const calls = [];
+  t.mock.method(console, 'error', (...args) => calls.push(args));
+
+  const mongo = new MongoClient({ dbname: 'test' });
+  const users = mongo.collection(`easymongo_pii_${randomUUID()}`);
+  await users.createIndex({ email: 1 }, { unique: true });
+
+  await users.save({ email: 'alice@secret-domain.example' });
+  await users.save({ email: 'alice@secret-domain.example' }); // duplicate key
+
+  assert.ok(calls.length >= 1);
+  const printed = String(calls[0][1]);
+  assert.match(
+    printed,
+    /alice@secret-domain\.example/,
+    'the driver error itself carries the field value - the default logger never prints ctx.query, but does print err'
+  );
 
   await mongo.close();
 });

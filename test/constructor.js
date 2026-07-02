@@ -40,6 +40,27 @@ test('respects port override', () => {
   assert.equal(mongo.url, 'mongodb://db.example:27018/test');
 });
 
+test('host is encoded like dbname already is', () => {
+  const mongo = new MongoClient({
+    host: 'evil.com/@attacker.example',
+    dbname: 'test'
+  });
+  assert.equal(
+    mongo.url,
+    'mongodb://evil.com%2F%40attacker.example:27017/test'
+  );
+});
+
+test('a bracketed IPv6 literal host keeps its brackets, unencoded', () => {
+  const mongo = new MongoClient({ host: '[::1]', dbname: 'test' });
+  assert.equal(mongo.url, 'mongodb://[::1]:27017/test');
+});
+
+test('a host merely resembling an IPv6 literal is still encoded', () => {
+  const mongo = new MongoClient({ host: '[::1]/evil', dbname: 'test' });
+  assert.equal(mongo.url, 'mongodb://%5B%3A%3A1%5D%2Fevil:27017/test');
+});
+
 test('throws when dbname is missing in object form', () => {
   assert.throws(
     () => new MongoClient({ host: 'localhost' }),
