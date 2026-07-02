@@ -44,6 +44,23 @@ await mongo.close();
 
 The connection opens lazily on the first I/O call. Concurrent first calls share a single connect. Call `close()` when done.
 
+## Trust boundary
+
+This is a thin wrapper, not a sanitizing layer. Read this before pointing it at request input.
+
+- **Filters reach the driver unsanitized on every method** — `find`, `findOne`, `exists`, `count`, `distinct`, `update`, `remove`, and `each()` (easy to miss, since it's the streaming path) all pass the query through as-is.
+- **The update-document is unsanitized too** — `update()`'s 2nd argument applies exactly as given; an untrusted `$set`/`$inc` payload is a mass-assignment vector.
+- **`options.fields`/`projection`/`sort` aren't sanitized either** — the fail-closed array whitelist only blocks a degenerate input (`[]`, `['__proto__']`); `fields: ['password']` is a valid whitelist entry and goes straight through.
+- **The only guarded surface** is the scalar `_id` slot in `findById`/`removeById`, which reject a plain-object id.
+
+Never pass `req.body`/`req.query` directly as a query, an update-document, or an options object — build and validate it yourself.
+
+Three more things worth knowing before production:
+
+- **Empty and failure look identical** — a `[]`, `null`, or `false` tells you nothing about whether the operation failed. See [Per-operation `onError`](#per-operation-onerror) for the pattern that tells them apart.
+- **A literal `id` field is a footgun** — documents synced from an external API (Stripe, YouTube, anything REST-shaped) often already have their own `id`, and it silently becomes `_id` instead of staying a literal field. See [IDs](#ids) for the mechanics.
+- **Driver errors can carry more than you'd expect** — the default logger never prints `ctx.query`, but the underlying error message can still embed field values (a duplicate-key error, for one). See [Observability](#observability).
+
 ## Client
 
 ```js
@@ -59,7 +76,7 @@ new MongoClient(server, options?)
 | `silent`  | `false`         | Suppress all internal error reporting                         |
 | `onError` | `console.error` | `(err, ctx) => void`, `ctx = { method, collection?, query? }` |
 
-`client.collection(name)` returns a `Collection`. `client.close()` releases the connection and is safe to call more than once. Concurrent `close()` calls share one teardown.
+`client.collection(name)` returns a `Collection`. `client.close()` releases the connection and is safe to call more than once. Concurrent `close()` calls share one teardown. Once `close()` resolves, the client is permanently closed — a later operation does not reopen a new pool; it collapses to its own empty default and is reported, same as any other swallowed error.
 
 `MongoClient` implements `Symbol.asyncDispose`, so it composes with `await using`:
 
@@ -93,11 +110,11 @@ new MongoClient(server, options?)
 
 Every async method except `findById` accepts `options.signal: AbortSignal` and `options.timeout: ms` for cancellation (see [AbortSignal and timeout](#abortsignal-and-timeout)) and a per-operation `options.onError` reporter (see [Observability](#observability)); for `ensureIndexes`, pass them inside each entry's `options`. `oid(value?)` is synchronous: it coerces a valid 24-char hex string to `ObjectId`, mints a fresh one for nullish input, and returns anything else untouched.
 
-`save` inserts when `_id` is absent and replaces via `upsert` when present. Documents passed to `save`/`saveAll` get the same `id` → `_id` alias rewrite as queries — a top-level `id` field never reaches the database as a literal field. `saveAll` delegates to an unordered `insertMany`; non-object entries are dropped silently, and on partial failure (e.g. one entry hits a duplicate key) it resolves to the successfully inserted subset instead of `[]`. Non-object input to `save` and non-array input to `saveAll` are rejected and reported, like every other validation reject.
+`save` inserts when `_id` is absent and replaces via `upsert` when present. Documents passed to `save`/`saveAll` get the same `id` → `_id` alias rewrite as queries — a top-level `id` field never reaches the database as a literal field. A plain-object `_id` (e.g. `{$gt: ''}`, operator smuggling) is rejected and reported, same as `findById`/`removeById` reject a plain-object id. `saveAll` delegates to an unordered `insertMany`; non-object entries are dropped silently, and on partial failure (e.g. one entry hits a duplicate key) it resolves to the successfully inserted subset instead of `[]`. Non-object input to `save` and non-array input to `saveAll` are rejected and reported, like every other validation reject.
 
 `count({})` short-circuits to `estimatedDocumentCount`, which reads the cached collection size without a full scan. Numbers may be slightly off on sharded collections with orphans or after an unclean shutdown, but the path is roughly two orders of magnitude faster.
 
-`count(query)` with a non-empty filter calls `countDocuments` and falls back to a streamed `find` cursor with `_id`-only projection when the driver rejects the query (operators such as `$where` and `$near` are valid in `find` but not in the aggregation `$match` that `countDocuments` builds). The fallback streams in batches and is bounded in memory, but it's a real round trip — prefer indexed predicates when possible.
+`count(query)` with a non-empty filter calls `countDocuments` and falls back to a streamed `find` cursor with `_id`-only projection when the driver rejects the query (operators such as `$where` and `$near` are valid in `find` but not in the aggregation `$match` that `countDocuments` builds) — except for `$where` itself (at any depth inside `$and`/`$or`/`$nor`), which never falls back: re-running it via the cursor would execute that JS against every document, so it collapses to `0` like any other rejected query instead. The remaining fallback streams in batches and is bounded in memory, but it's a real round trip — prefer indexed predicates when possible — and is reported via `onError` before it runs, so the cost is observable.
 
 ## Read options
 
@@ -199,7 +216,7 @@ Strings that are not valid 24-character hex pass through unchanged, so numeric a
 
 `findById`/`removeById` reject `null`, `undefined`, and plain-object ids before the driver sees them (reported as `Invalid id rejected`): an operator object like `{ $ne: null }` smuggled from request input would otherwise match — or delete — an arbitrary document. Use `findOne({ _id: { ... } })` for intentional operator queries.
 
-Apart from this id normalization, query objects are passed to the driver **unsanitized** — that is the point of a thin wrapper. Never feed raw request input (`req.body`, `req.query`) into a query position; validate and build the filter yourself.
+Apart from this id normalization, query objects are passed to the driver **unsanitized** — see [Trust boundary](#trust-boundary) for the full picture, including the update-document and read `options`.
 
 ## Observability
 
