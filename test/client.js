@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import { MongoClient } from '../lib/index.js';
 
-test('open/close/open race leaves the second client live', async () => {
+test('open() called during an in-flight close() is rejected, not given a new pool', async () => {
   const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
   const users = mongo.collection('easymongo_race');
 
@@ -13,19 +13,12 @@ test('open/close/open race leaves the second client live', async () => {
 
   await Promise.allSettled([first, closed, second]);
 
-  assert.notEqual(mongo.client, null, 'client was clobbered by stale promise');
-  assert.notEqual(mongo.db, null, 'db was clobbered by stale promise');
-
-  // close() has now fully settled (awaited above via Promise.allSettled), so
-  // the client is permanently closed: this later, non-racing call must not
-  // silently reconnect - it collapses to the empty default instead.
-  const captured = [];
-  const after = await users.count({}, { onError: (err) => captured.push(err) });
-  assert.equal(after, 0, 'does not reconnect once close() has settled');
-  assert.ok(
-    captured.some((err) => /closed/i.test(err.message)),
-    'reports that the client is closed'
-  );
+  // _closed is set synchronously at the top of close(), before any teardown
+  // I/O - so `second`, called right after, never gets a fresh client that
+  // could outlive this call and go unclosed.
+  assert.equal(mongo.client, null, 'no orphaned pool survives a close() race');
+  assert.equal(mongo.db, null);
+  assert.equal(await second, 0, 'racing open collapses to the empty default');
 
   await mongo.close();
   assert.equal(mongo.client, null);
@@ -110,7 +103,7 @@ test('close(): native close error is swallowed and reported as {method: close}',
   await original();
 });
 
-test('close() racing with reopen closes both clients', async () => {
+test('reopen attempted synchronously after close() is rejected, original client still closes', async () => {
   const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
   await mongo.collection('easymongo_close_reopen').count();
   const clientA = mongo.client;
@@ -124,25 +117,15 @@ test('close() racing with reopen closes both clients', async () => {
 
   const firstClose = mongo.close();
 
-  // Reopen synchronously: open()'s sync prelude installs a fresh native
-  // client on `this.client` before the first await.
+  // _closed is already true here (set synchronously at the top of close(),
+  // before firstClose's teardown I/O even starts), so this must not get a
+  // fresh client - no orphaned pool left behind.
   const reopen = mongo.collection('easymongo_close_reopen').count();
-  const clientB = mongo.client;
-  assert.notEqual(clientA, clientB, 'reopen produced a fresh native client');
 
-  let closeBCalls = 0;
-  const closeB = clientB.close.bind(clientB);
-  clientB.close = async (...args) => {
-    closeBCalls = closeBCalls + 1;
-    return closeB(...args);
-  };
+  await Promise.allSettled([firstClose, reopen]);
 
-  const secondClose = mongo.close();
-
-  await Promise.allSettled([firstClose, reopen, secondClose]);
-
+  assert.equal(await reopen, 0, 'racing reopen collapses to the empty default');
   assert.equal(closeACalls, 1, 'client A closed exactly once');
-  assert.equal(closeBCalls, 1, 'client B closed exactly once');
   assert.equal(mongo.client, null);
   assert.equal(mongo.db, null);
 });
