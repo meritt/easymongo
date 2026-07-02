@@ -844,8 +844,13 @@ describe('saveAll partial recovery', () => {
     ]);
 
     assert.equal(result.length, 2);
-    const names = result.map((d) => d.name).sort();
-    assert.deepEqual(names, ['A', 'B']);
+    // No .sort() here on purpose: recover() preserves input-index order, so
+    // this must hold positionally (A came before the conflict, B after it),
+    // not just as a set.
+    assert.deepEqual(
+      result.map((d) => d.name),
+      ['A', 'B']
+    );
     for (const doc of result) {
       assert.ok(doc._id instanceof ObjectId);
     }
