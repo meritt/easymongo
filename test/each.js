@@ -1,18 +1,16 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { describe, test, before, after, beforeEach } from 'node:test';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 import { MongoClient } from '../lib/index.js';
-import { SLOW_WHERE } from './helpers.js';
+import { SLOW_WHERE, UNREACHABLE, wipe as wipeNames } from './helpers.js';
 
 const COLLECTION = `easymongo_each_${randomUUID()}`;
 const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
 const items = mongo.collection(COLLECTION);
 
-async function wipe() {
-  const native = await mongo.open(COLLECTION);
-  await native.deleteMany({});
-}
+const wipe = () => wipeNames(mongo, COLLECTION);
 
 before(wipe);
 after(async () => {
@@ -27,18 +25,10 @@ async function seed(count) {
   );
 }
 
-async function collect(iterable) {
-  const out = [];
-  for await (const doc of iterable) {
-    out.push(doc);
-  }
-  return out;
-}
-
 describe('each — basic iteration', () => {
   test('yields all matching documents', async () => {
     await seed(50);
-    const seen = (await collect(items.each({}))).map((d) => d.n);
+    const seen = (await Array.fromAsync(items.each({}))).map((d) => d.n);
     seen.sort((a, b) => a - b);
     assert.equal(seen.length, 50);
     assert.equal(seen[0], 0);
@@ -47,21 +37,23 @@ describe('each — basic iteration', () => {
 
   test('applies query filter', async () => {
     await seed(20);
-    const seen = await collect(items.each({ n: { $gte: 15 } }));
+    const seen = await Array.fromAsync(items.each({ n: { $gte: 15 } }));
     assert.equal(seen.length, 5);
   });
 
   test('applies sort, limit, skip', async () => {
     await seed(10);
     const seen = (
-      await collect(items.each({}, { sort: { n: 1 }, limit: 3, skip: 2 }))
+      await Array.fromAsync(
+        items.each({}, { sort: { n: 1 }, limit: 3, skip: 2 })
+      )
     ).map((d) => d.n);
     assert.deepEqual(seen, [2, 3, 4]);
   });
 
   test('applies projection via fields array', async () => {
     await seed(3);
-    const seen = await collect(items.each({}, { fields: ['n'] }));
+    const seen = await Array.fromAsync(items.each({}, { fields: ['n'] }));
     for (const doc of seen) {
       assert.equal(doc.name, undefined);
       assert.notEqual(doc.n, undefined);
@@ -69,13 +61,15 @@ describe('each — basic iteration', () => {
   });
 
   test('empty result yields nothing', async () => {
-    const seen = await collect(items.each({ name: 'nope' }));
+    const seen = await Array.fromAsync(items.each({ name: 'nope' }));
     assert.deepEqual(seen, []);
   });
 
   test('id alias works in query', async () => {
     const created = await items.save({ name: 'A' });
-    const seen = await collect(items.each({ id: created._id.toString() }));
+    const seen = await Array.fromAsync(
+      items.each({ id: created._id.toString() })
+    );
     assert.equal(seen.length, 1);
     assert.equal(seen[0].name, 'A');
   });
@@ -129,7 +123,7 @@ describe('each — lifecycle', () => {
     await seed(5);
     {
       await using cursor = items.each({});
-      const seen = await collect(cursor);
+      const seen = await Array.fromAsync(cursor);
       assert.equal(seen.length, 5);
     }
     assert.equal(await items.count(), 5);
@@ -158,8 +152,7 @@ describe('each — lifecycle', () => {
   });
 
   test('Symbol.asyncDispose closes a live mid-iteration cursor', async () => {
-    // More docs than one server batch so the cursor stays open after a single
-    // next() — dispose must close a genuinely live cursor, not an empty set.
+    // More than one server batch, so the cursor is still live.
     await seed(300);
     const cursor = items.each({});
     const it = cursor[Symbol.asyncIterator]();
@@ -169,7 +162,6 @@ describe('each — lifecycle', () => {
 
     await cursor[Symbol.asyncDispose]();
 
-    // next() on a disposed cursor ends instead of throwing; the client stays usable.
     const second = await it.next();
     assert.equal(second.done, true);
     assert.equal(await items.count(), 300);
@@ -179,11 +171,10 @@ describe('each — lifecycle', () => {
 describe('each — fail-silent', () => {
   test('connection error: iteration ends silently and emits', async () => {
     const captured = [];
-    const broken = new MongoClient(
-      'mongodb://127.0.0.1:1/test?serverSelectionTimeoutMS=300',
-      { onError: (err, ctx) => captured.push({ err, ctx }) }
-    );
-    const seen = await collect(broken.collection('whatever').each({}));
+    const broken = new MongoClient(UNREACHABLE, {
+      onError: (err, ctx) => captured.push({ err, ctx })
+    });
+    const seen = await Array.fromAsync(broken.collection('whatever').each({}));
     assert.deepEqual(seen, []);
     assert.ok(captured.length >= 1);
     assert.equal(captured[0].ctx.method, 'each');
@@ -256,10 +247,8 @@ describe('each — abandoned iterators are reclaimed by GC', () => {
     'GC closes cursors of iterators abandoned mid-iteration',
     { skip: !globalThis.gc },
     async () => {
-      // More docs than one server batch (~101) so a single next() leaves the
-      // cursor live and pinned server-side instead of exhausting it at once.
+      // More than one server batch, so each cursor stays live.
       await seed(500);
-      // Ensure the native client (and its active-cursor set) exists.
       await items.count();
       const activeCursors = mongo.client?.s?.activeCursors;
 
@@ -281,18 +270,12 @@ describe('each — abandoned iterators are reclaimed by GC', () => {
         );
       }
 
-      // Force GC, then let the FinalizationRegistry callbacks — and the async
-      // cursor.close() they trigger — run.
-      const tick = (ms) =>
-        new Promise((resolve) => {
-          setTimeout(resolve, ms);
-        });
       for (let i = 0; i < 5; i = i + 1) {
         globalThis.gc();
         // oxlint-disable-next-line no-await-in-loop
-        await tick(10);
+        await sleep(10);
       }
-      await tick(50);
+      await sleep(50);
 
       if (activeCursors) {
         assert.ok(
@@ -308,17 +291,14 @@ describe('each — abandoned iterators are reclaimed by GC', () => {
 describe('each — local onError', () => {
   test('connection error routes to the local handler only', async () => {
     let clientCalled = 0;
-    const broken = new MongoClient(
-      'mongodb://127.0.0.1:1/test?serverSelectionTimeoutMS=300',
-      {
-        onError: () => {
-          clientCalled = clientCalled + 1;
-        }
+    const broken = new MongoClient(UNREACHABLE, {
+      onError: () => {
+        clientCalled = clientCalled + 1;
       }
-    );
+    });
 
     const captured = [];
-    const seen = await collect(
+    const seen = await Array.fromAsync(
       broken
         .collection('whatever')
         .each({}, { onError: (err, ctx) => captured.push(ctx.method) })
@@ -379,7 +359,7 @@ describe('each — AbortSignal', () => {
 
     const ctrl = new AbortController();
     ctrl.abort();
-    const seen = await collect(
+    const seen = await Array.fromAsync(
       local.collection(COLLECTION).each({}, { signal: ctrl.signal })
     );
     assert.deepEqual(seen, []);

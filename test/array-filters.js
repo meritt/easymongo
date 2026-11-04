@@ -3,15 +3,13 @@ import { randomUUID } from 'node:crypto';
 import { describe, test, before, after, beforeEach } from 'node:test';
 
 import { MongoClient } from '../lib/index.js';
+import { wipe as wipeNames } from './helpers.js';
 
 const COLLECTION = `easymongo_arrfilter_${randomUUID()}`;
 const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
 const articles = mongo.collection(COLLECTION);
 
-async function wipe() {
-  const native = await mongo.open(COLLECTION);
-  await native.deleteMany({});
-}
+const wipe = () => wipeNames(mongo, COLLECTION);
 
 before(wipe);
 after(async () => {
@@ -69,15 +67,16 @@ describe('update with arrayFilters', () => {
     assert.equal(doc.count, 2);
   });
 
-  test('only arrayFilters is forwarded — other options ignored', async () => {
+  test('only arrayFilters and upsert are forwarded — other options ignored', async () => {
     await articles.save({ name: 'A', count: 1 });
+    // A forwarded hint naming a missing index would fail the update.
     const ok = await articles.update(
-      { name: 'NoSuch' },
+      { name: 'A' },
       { $set: { count: 99 } },
-      { upsert: true, arrayFilters: [] }
+      { hint: { no_such_index: 1 }, arrayFilters: [] }
     );
-    assert.equal(ok, false);
-    assert.equal(await articles.count({ name: 'NoSuch' }), 0);
+    assert.equal(ok, true);
+    assert.equal((await articles.findOne({ name: 'A' })).count, 99);
   });
 
   test('invalid arrayFilters spec collapses to false + emits', async () => {

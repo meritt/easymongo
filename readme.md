@@ -48,12 +48,13 @@ The connection opens lazily on the first I/O call. Concurrent first calls share 
 
 This is a thin wrapper, not a sanitizing layer. Read this before pointing it at request input.
 
-- **Filters reach the driver unsanitized on every method.** `find`, `findOne`, `exists`, `count`, `distinct`, `update`, `remove`, and `each()` (easy to miss, since it's the streaming path) all pass the query through as-is.
+- **Filters reach the driver unsanitized on every method.** `find`, `findOne`, `exists`, `count`, `distinct`, `update`, `remove`, and `each()` (easy to miss, since it's the streaming path) all pass the query through as-is, `$where`, `$function`, and `$expr` included, so an untrusted filter can run JavaScript on the server.
 - **The update-document is unsanitized too.** `update()`'s 2nd argument applies exactly as given; an untrusted `$set`/`$inc` payload is a mass-assignment vector.
 - **`options.fields`/`projection`/`sort` aren't sanitized either.** The fail-closed array whitelist only blocks a degenerate input (`[]`, `['__proto__']`); `fields: ['password']` is a valid whitelist entry and goes straight through. A projection object, including `findById`'s positional `fields`, accepts aggregation expressions, so `{ x: { $function: ... } }` runs JavaScript on the server.
 - **The guarded surfaces** are the `_id` slot (anything but a scalar id is rejected by `findById`/`removeById` and in `save`/`saveAll` documents), the empty-filter guard on `update`/`remove`. They fail closed and are syntactic: each reads the top level of the copy that is sent (getters run once) and does not predict what the serializer or the server makes of deeper values. The empty-filter guard stops a missing or blank filter, one with no key holding data (`undefined`, a function, or a symbol does not count, nor does a filter with its own `toBSON`), not one that matches everything by construction (`{ $and: [{}] }`, `{ $comment: 'x' }`).
+- **Collection names are trusted.** Every distinct name keeps a driver handle cached for the life of the client, and the name appears in reported errors, so derive it from your own code, not from a request.
 
-Never pass `req.body`/`req.query` directly as a query, an update-document, or an options object. Build and validate it yourself.
+Never pass `req.body`/`req.query` directly as a query, an update-document, a pipeline, or an options object. Build and validate it yourself.
 
 Also:
 
@@ -95,7 +96,7 @@ new MongoClient(server, options?)
 | ----------------------------------- | -------------------------------------- | ------------------ |
 | `find(query?, options?)`            | `doc[]`                                | `[]`               |
 | `findOne(query?, options?)`         | `doc \| null`                          | `null`             |
-| `findById(id, fields?)`             | `doc \| null`                          | `null`             |
+| `findById(id, fields?, options?)`   | `doc \| null`                          | `null`             |
 | `each(query?, options?)`            | `AsyncIterable<doc> & AsyncDisposable` | empty iteration    |
 | `exists(query?, options?)`          | `boolean`                              | `false`            |
 | `count(query?, options?)`           | `number`                               | `0`                |
@@ -109,7 +110,7 @@ new MongoClient(server, options?)
 | `ensureIndexes(specs)`              | `string[]`                             | `[]`               |
 | `oid(value?)`                       | `ObjectId \| input`                    | fresh `ObjectId()` |
 
-Every async method except `findById` accepts `options.signal: AbortSignal` and `options.timeout: ms` for cancellation (see [AbortSignal and timeout](#abortsignal-and-timeout)) and a per-operation `options.onError` reporter (see [Observability](#observability)); for `ensureIndexes`, pass them inside each entry's `options`. `oid(value?)` is synchronous: it coerces a valid 24-char hex string to `ObjectId`, mints a fresh one for nullish input, and returns anything else untouched.
+Every async method accepts `options.signal: AbortSignal` and `options.timeout: ms` for cancellation (see [AbortSignal and timeout](#abortsignal-and-timeout)) and a per-operation `options.onError` reporter (see [Observability](#observability)); for `ensureIndexes`, pass them inside each entry's `options`. `findById` keeps the projection positional and takes these three keys, and only these, as its third argument: a projection map and an options object cannot be told apart in one slot. `oid(value?)` is synchronous: it coerces a valid 24-char hex string to `ObjectId`, mints a fresh one for nullish input, and returns anything else untouched.
 
 `save` inserts when `_id` is absent and replaces via `upsert` when present. Documents passed to `save`/`saveAll` get the same `id` → `_id` alias rewrite as queries. A top-level `id` field never reaches the database as a literal field. The `_id` gets the same scalar-id guard as `findById`/`removeById` (see [IDs](#ids)): an operator object such as `{$gt: ''}` is rejected and reported. `saveAll` delegates to an unordered `insertMany`; non-object entries are dropped silently, and on partial failure (e.g. one entry hits a duplicate key) it resolves to the successfully inserted subset instead of `[]`. Non-object input to `save` and non-array input to `saveAll` are rejected and reported, like every other validation reject.
 
@@ -272,11 +273,11 @@ if (failure) {
 }
 ```
 
-`findById` has no options slot, so use `findOne({ _id: id }, { onError })`. For `ensureIndexes`, pass `onError` inside each spec's `options`. A throwing local handler is caught and ignored, same as the client-level one. One caveat for `each()`: the local handler should not capture its own iterator, or an abandoned iterator can never be garbage-collected and its cursor stays pinned until the client is closed.
+For `findById`, pass it as the third argument: `findById(id, fields, { onError })`. For `ensureIndexes`, pass `onError` inside each spec's `options`. A throwing local handler is caught and ignored, same as the client-level one. One caveat for `each()`: the local handler should not capture its own iterator, or an abandoned iterator can never be garbage-collected and its cursor stays pinned until the client is closed.
 
 ## Empty filter protection
 
-`update(query, $update)` and `remove(query)` reject empty filters. `null`, `undefined`, `{}`, and a filter whose values are all `undefined` (e.g. `{field: undefined}`) short-circuit to `false` without touching the driver. The rejection is reported through `onError` (or `console.error`) with `{ method, collection, query }` so it stays visible.
+`update(query, $update)`, and `remove(query)` reject empty filters. `null`, `undefined`, `{}`, and a filter whose values are all `undefined` (e.g. `{field: undefined}`) short-circuit to `false` without touching the driver. The rejection is reported through `onError` (or `console.error`) with `{ method, collection, query }` so it stays visible.
 
 ```js
 await users.update(maybeMissing, { $set: { url: 'x' } }); // false, nothing rewritten
@@ -301,7 +302,7 @@ Only `arrayFilters`, `signal`, and `timeout` are forwarded; other driver-level u
 
 ## AbortSignal and timeout
 
-Every async method except `findById` accepts `options.signal` and forwards it to the driver (for `ensureIndexes`, inside each entry's `options`). Pre-aborted signals collapse to the empty default and emit through `onError`:
+Every async method accepts `options.signal` and forwards it to the driver (for `ensureIndexes`, inside each entry's `options`; for `findById`, in the third argument). Any other truthy value is rejected and reported as `Invalid signal rejected` before any I/O; a falsy one counts as no signal, so `{ signal: cond && ctrl.signal }` works. Pre-aborted signals collapse to the empty default and emit through `onError`:
 
 ```js
 const ctrl = new AbortController();
@@ -311,7 +312,9 @@ const docs = await users.find({}, { signal: ctrl.signal });
 // [] if the operation was aborted before completion
 ```
 
-`options.timeout: ms` arms a per-operation deadline (`AbortSignal.timeout` under the hood) and composes with a caller signal via `AbortSignal.any`, aborting when either fires. Non-positive and non-numeric values are ignored.
+`options.timeout: ms` arms a per-operation deadline that aborts with a `TimeoutError` and composes with a caller signal via `AbortSignal.any`, aborting when either fires. The deadline is cleared as soon as the operation settles, so a long timeout on a fast call holds nothing. Non-positive and non-numeric values are ignored.
+
+The deadline and the signal also cover the lazy connect. Against an unreachable server, a call with `timeout: 500` resolves to its empty default after about 500 ms instead of waiting out the driver's `serverSelectionTimeoutMS`. Only that one call gives up: the shared connect keeps running for the other callers, and a later call reuses it.
 
 ```js
 const docs = await users.find({}, { timeout: 500, signal: ctrl.signal });
@@ -320,11 +323,11 @@ const docs = await users.find({}, { timeout: 500, signal: ctrl.signal });
 
 Aborting mid-iteration of `each()` ends the loop quietly and reports through `onError`.
 
-`update({}, ..., {signal: aborted})` and `remove({}, {signal: aborted})` hit the empty-filter guard first, so the abort is invisible in `onError` for that one combination; pass a non-empty filter when both apply.
+Input guards (empty filter, invalid id, document, or index spec) run before the signal is looked at, so a call that is both rejected and aborted reports only the rejection. `saveAll` drops and reports each invalid entry but still writes the rest, so its abort is reported as well.
 
 ## Author
 
-- [Alexey Simonenko](https://simonenko.xyz)
+[Alexey Simonenko](https://simonenko.xyz)
 
 ## License
 

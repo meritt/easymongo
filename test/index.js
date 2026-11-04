@@ -5,7 +5,7 @@ import { describe, test, before, after, beforeEach } from 'node:test';
 import { ObjectId } from 'mongodb';
 
 import { MongoClient } from '../lib/index.js';
-import { capture } from './helpers.js';
+import { UNREACHABLE, capture } from './helpers.js';
 
 const COLLECTION = `easymongo_test_${randomUUID()}`;
 const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
@@ -295,13 +295,77 @@ describe('findById', () => {
     assert.equal(await users.findById(null), null);
   });
 
-  test('rejects plain-object id (operator smuggling)', async () => {
+  test('rejects an operator-object id (operator smuggling)', async () => {
     await users.save({ name: 'Alexey' });
     assert.equal(await users.findById({ $ne: null }), null);
     assert.equal(
       await users.findById({ id: '4e4e1638c85e808431000003' }),
       null
     );
+  });
+
+  test('third argument: a rejected id reports through the local onError', async () => {
+    const { captured, onError } = capture();
+    const result = await users.findById({ $ne: null }, undefined, { onError });
+
+    assert.equal(result, null);
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].err.message, 'Invalid id rejected');
+    assert.equal(captured[0].ctx.method, 'findById');
+  });
+
+  test('third argument: an aborted signal collapses to null and reports', async () => {
+    const saved = await users.save({ name: 'Alexey' });
+    const { captured, onError } = capture();
+
+    const result = await users.findById(saved._id, ['name'], {
+      signal: AbortSignal.abort(),
+      onError
+    });
+
+    assert.equal(result, null);
+    assert.equal(captured.length, 1);
+  });
+
+  test('third argument: fields and options compose on the happy path', async () => {
+    const saved = await users.save({ name: 'Alexey', secret: 'shh' });
+    const result = await users.findById(saved._id, ['name'], { timeout: 5000 });
+
+    assert.equal(result.name, 'Alexey');
+    assert.equal(result.secret, undefined);
+  });
+
+  test('third argument: options cannot smuggle a projection or a limit', async () => {
+    const saved = await users.save({ name: 'Alexey', secret: 'shh' });
+    const result = await users.findById(saved._id, undefined, {
+      projection: { name: 1 },
+      fields: ['name']
+    });
+
+    assert.equal(result.secret, 'shh');
+  });
+
+  test('third argument: a throwing getter collapses to null and reports', async () => {
+    const saved = await users.save({ name: 'Alexey' });
+    const captured = [];
+    const mongoLocal = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err) => captured.push(err) }
+    );
+    const options = {
+      get signal() {
+        throw new Error('boom');
+      }
+    };
+
+    const result = await mongoLocal
+      .collection(COLLECTION)
+      .findById(saved._id, undefined, options);
+
+    assert.equal(result, null);
+    assert.equal(captured.length, 1);
+    assert.equal(captured[0].message, 'boom');
+    await mongoLocal.close();
   });
 });
 
@@ -531,7 +595,7 @@ describe('removeById', () => {
     assert.equal(await users.count(), 1);
   });
 
-  test('rejects plain-object id (operator smuggling)', async () => {
+  test('rejects an operator-object id (operator smuggling)', async () => {
     await users.save({ name: 'Alexey' });
     assert.equal(await users.removeById({ $ne: null }), false);
     assert.equal(
@@ -755,9 +819,7 @@ describe('read options', () => {
       return original(filter, opts);
     });
 
-    // `['__proto__']` must collapse to `{_id: 1}`, not `{__proto__: 1}`: the
-    // null-prototype projection object would otherwise turn `__proto__` into a
-    // real own key, leaking a stored `__proto__` field past the whitelist.
+    // A null-prototype projection would make `__proto__` a real own key.
     const smuggled = await users.find({}, { fields: ['__proto__'] });
     assert.equal(smuggled.length, 1);
     assert.equal(smuggled[0].name, undefined);
@@ -772,9 +834,6 @@ describe('read options', () => {
   });
 
   test('a stored __proto__ field is not leaked by the array whitelist', async () => {
-    // A document with a field literally named `__proto__` (own key, not the
-    // prototype slot) is the only case where `{__proto__: 1}` and `{_id: 1}`
-    // diverge — prove the whitelist fails closed against it.
     const native = await mongo.open(COLLECTION);
     await native.insertOne({ name: 'Alexey', ['__proto__']: 'leak' });
 
@@ -835,8 +894,7 @@ describe('connection lifecycle', () => {
     await col.save({ name: 'before' });
     assert.equal(await col.count(), 1);
 
-    // Cleanup must happen before close(): wipe() opens the client directly,
-    // which throws once the client is permanently closed.
+    // wipe() opens the client, which throws once it is closed.
     await wipe(client, name);
     await client.close();
 
@@ -869,9 +927,7 @@ describe('saveAll partial recovery', () => {
     ]);
 
     assert.equal(result.length, 2);
-    // No .sort() here on purpose: recover() preserves input-index order, so
-    // this must hold positionally (A came before the conflict, B after it),
-    // not just as a set.
+    // Input order: A before the conflict, B after it.
     assert.deepEqual(
       result.map((d) => d.name),
       ['A', 'B']
@@ -914,12 +970,9 @@ describe('saveAll partial recovery', () => {
   });
 
   test('connection error returns []', async () => {
-    const unreachable = new MongoClient(
-      'mongodb://127.0.0.1:1/test?serverSelectionTimeoutMS=300',
-      {
-        silent: true
-      }
-    );
+    const unreachable = new MongoClient(UNREACHABLE, {
+      silent: true
+    });
     const result = await unreachable
       .collection('anything')
       .saveAll([{ name: 'A' }, { name: 'B' }]);

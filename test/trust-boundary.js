@@ -3,21 +3,16 @@ import { randomUUID } from 'node:crypto';
 import { describe, test, before, after, beforeEach } from 'node:test';
 
 import { MongoClient } from '../lib/index.js';
+import { wipe as wipeNames } from './helpers.js';
 
-// These tests pin currently-intentional, documented behavior: this is a thin
-// wrapper, not a sanitizing layer. Only the by-id scalar slot (findById /
-// removeById) is guarded; everything below is expected to stay open. A
-// future refactor that narrows or widens any of these surfaces should have
-// to touch a failing test here, on purpose - not drift silently.
+// Pins what the readme's Trust boundary leaves open, so narrowing or
+// widening it takes a deliberate test change.
 
 const COLLECTION = `easymongo_trust_${randomUUID()}`;
 const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
 const users = mongo.collection(COLLECTION);
 
-async function wipe() {
-  const native = await mongo.open(COLLECTION);
-  await native.deleteMany({});
-}
+const wipe = () => wipeNames(mongo, COLLECTION);
 
 before(wipe);
 after(async () => {
@@ -26,7 +21,7 @@ after(async () => {
 });
 beforeEach(wipe);
 
-describe('trust boundary — filter injection is open (except by-id)', () => {
+describe('trust boundary — filter injection is open', () => {
   test('findOne: an operator in a filter field bypasses the intended match', async () => {
     await users.save({ user: 'admin', pw: 'correcthorsebatterystaple' });
 
@@ -123,9 +118,6 @@ describe('trust boundary — options.fields/projection expose whatever is asked'
   test('the fail-closed whitelist collapse only guards the degenerate case, not field choice', async () => {
     await users.save({ name: 'Alexey', password: 'S3CRET-HASH' });
 
-    // A caller-supplied array that resolves to no usable fields collapses to
-    // {_id: 1} (can't disable the whitelist) - but a real field name, even a
-    // sensitive one, is a valid whitelist entry and passes straight through.
     const degenerate = await users.findOne(
       { name: 'Alexey' },
       { fields: ['__proto__'] }

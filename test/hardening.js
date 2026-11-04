@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { describe, test, before, after, beforeEach } from 'node:test';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 import { BSONRegExp, ObjectId, UUID } from 'mongodb';
 
 import { MongoClient } from '../lib/index.js';
 import { prepare, prepareQuery } from '../lib/prepare.js';
-import { capture, wipe as wipeNames } from './helpers.js';
+import { SEED, capture, everyMethod, wipe as wipeNames } from './helpers.js';
 
 const COLLECTION = `easymongo_hardening_${randomUUID()}`;
 const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
@@ -63,6 +64,68 @@ describe('a null id alias never matches every document', () => {
   });
 });
 
+describe('only AbortSignal is accepted as options.signal', () => {
+  test('every method rejects a non-signal value and leaves no orphaned timer', async () => {
+    const unhandled = [];
+    const onUnhandled = (reason) => unhandled.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+
+    const local = new MongoClient(
+      { dbname: 'test' },
+      { silent: true, serverSelectionTimeoutMS: 300 }
+    );
+    const col = local.collection(COLLECTION);
+    await col.save({ ...SEED });
+
+    try {
+      const results = await Promise.all(
+        [{}, 'x', 1].flatMap((signal) =>
+          everyMethod(col).map(async ({ method, call, empty }) => {
+            const { captured, onError } = capture();
+            const result = await call({ signal, onError });
+            return { method, result, empty, captured };
+          })
+        )
+      );
+
+      for (const { method, result, empty, captured } of results) {
+        assert.deepEqual(result, empty, method);
+        assert.equal(captured.length, 1, method);
+        assert.equal(captured[0].err.message, 'Invalid signal rejected');
+      }
+
+      const stored = await (await mongo.open(COLLECTION)).find().toArray();
+      assert.equal(stored.length, 1, 'nothing was inserted or removed');
+      assert.equal(Object.hasOwn(stored[0], 'b'), false, 'nothing was updated');
+      await local.close();
+      await sleep(600);
+      assert.deepEqual(unhandled, []);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+      await local.close();
+    }
+  });
+});
+
+describe('a falsy options.signal counts as none', () => {
+  test('a call with false, 0, or an empty string runs as if none was passed', async () => {
+    await docs.save({ ...SEED });
+
+    const runs = [false, 0, ''].flatMap((signal) =>
+      [undefined, 1000].map(async (timeout) => {
+        const { captured, onError } = capture();
+        const found = await docs.find({}, { signal, timeout, onError });
+        return { found, captured };
+      })
+    );
+
+    for (const { found, captured } of await Promise.all(runs)) {
+      assert.equal(found.length, 1);
+      assert.deepEqual(captured, []);
+    }
+  });
+});
+
 describe('the id slot accepts scalar ids only', () => {
   class Smuggled {
     constructor() {
@@ -87,12 +150,12 @@ describe('the id slot accepts scalar ids only', () => {
       await docs.saveAll([{ _id: 'victim-1' }, { _id: 'victim-2' }]);
       const { captured, onError } = capture();
 
-      assert.equal(await docs.findById(make()), null);
+      assert.equal(await docs.findById(make(), undefined, { onError }), null);
       assert.equal(await docs.removeById(make(), { onError }), false);
       assert.equal(await docs.save({ _id: make(), x: 1 }, { onError }), null);
       assert.deepEqual(await docs.saveAll([{ _id: make() }], { onError }), []);
 
-      assert.equal(captured.length, 3);
+      assert.equal(captured.length, 4);
       assert.equal(await rawCount(), 2);
     });
   }

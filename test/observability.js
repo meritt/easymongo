@@ -1,16 +1,14 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
+import { setImmediate as tick } from 'node:timers/promises';
 
 import { MongoClient } from '../lib/index.js';
-
-const UNREACHABLE = 'mongodb://127.0.0.1:1/test?serverSelectionTimeoutMS=300';
+import { UNREACHABLE, capture, everyMethod } from './helpers.js';
 
 test('fail-silent: find returns [] when connection cannot be established', async () => {
-  const captured = [];
-  const mongo = new MongoClient(UNREACHABLE, {
-    onError: (err, ctx) => captured.push({ err, ctx })
-  });
+  const { captured, onError } = capture();
+  const mongo = new MongoClient(UNREACHABLE, { onError });
   const users = mongo.collection('users');
 
   const result = await users.find({});
@@ -19,64 +17,6 @@ test('fail-silent: find returns [] when connection cannot be established', async
   assert.equal(captured[0].ctx.method, 'find');
   assert.equal(captured[0].ctx.collection, 'users');
 
-  await mongo.close();
-});
-
-test('fail-silent: findOne returns null on bad connection', async () => {
-  const mongo = new MongoClient(UNREACHABLE, { silent: true });
-  const result = await mongo.collection('users').findOne({});
-  assert.equal(result, null);
-  await mongo.close();
-});
-
-test('fail-silent: count returns 0 on bad connection', async () => {
-  const mongo = new MongoClient(UNREACHABLE, { silent: true });
-  const result = await mongo.collection('users').count();
-  assert.equal(result, 0);
-  await mongo.close();
-});
-
-test('fail-silent: save returns null on bad connection', async () => {
-  const mongo = new MongoClient(UNREACHABLE, { silent: true });
-  const result = await mongo.collection('users').save({ name: 'x' });
-  assert.equal(result, null);
-  await mongo.close();
-});
-
-test('fail-silent: update returns false on bad connection', async () => {
-  const mongo = new MongoClient(UNREACHABLE, { silent: true });
-  const result = await mongo
-    .collection('users')
-    .update({ name: 'x' }, { $set: { a: 1 } });
-  assert.equal(result, false);
-  await mongo.close();
-});
-
-test('fail-silent: remove returns false on bad connection', async () => {
-  const mongo = new MongoClient(UNREACHABLE, { silent: true });
-  const result = await mongo.collection('users').remove({ name: 'x' });
-  assert.equal(result, false);
-  await mongo.close();
-});
-
-test('fail-silent: exists returns false on bad connection', async () => {
-  const mongo = new MongoClient(UNREACHABLE, { silent: true });
-  const result = await mongo.collection('users').exists({});
-  assert.equal(result, false);
-  await mongo.close();
-});
-
-test('fail-silent: distinct returns [] on bad connection', async () => {
-  const mongo = new MongoClient(UNREACHABLE, { silent: true });
-  const result = await mongo.collection('users').distinct('field');
-  assert.deepEqual(result, []);
-  await mongo.close();
-});
-
-test('fail-silent: saveAll returns [] on bad connection', async () => {
-  const mongo = new MongoClient(UNREACHABLE, { silent: true });
-  const result = await mongo.collection('users').saveAll([{ a: 1 }]);
-  assert.deepEqual(result, []);
   await mongo.close();
 });
 
@@ -142,76 +82,18 @@ test('silent: true also suppresses the default console.error path', async (t) =>
   await mongo.close();
 });
 
-test('broken console.error: find still returns [] without throwing', async (t) => {
+test('broken console.error: every public method returns its empty default on a bad connection', async (t) => {
   t.mock.method(console, 'error', () => {
     throw new Error('console hostile');
   });
   const mongo = new MongoClient(UNREACHABLE);
-  let threw = null;
-  let result;
-  try {
-    result = await mongo.collection('users').find({});
-  } catch (err) {
-    threw = err;
-  }
-  assert.equal(threw, null, 'fail-silent contract violated');
-  assert.deepEqual(result, []);
-  await mongo.close();
-});
+  const methods = everyMethod(mongo.collection('users'));
 
-test('broken console.error: every public method returns its empty default', async (t) => {
-  t.mock.method(console, 'error', () => {
-    throw new Error('console hostile');
-  });
-  const mongo = new MongoClient(UNREACHABLE);
-  const col = mongo.collection('users');
-  const survey = {};
-  async function run(label, fn, expectedDefault) {
-    let threw = null;
-    let value;
-    try {
-      value = await fn();
-    } catch (err) {
-      threw = err.message;
-    }
-    survey[label] = {
-      threw,
-      gotDefault:
-        !threw && JSON.stringify(value) === JSON.stringify(expectedDefault)
-    };
+  const results = await Promise.all(methods.map(({ call }) => call()));
+
+  for (const [i, { method, empty }] of methods.entries()) {
+    assert.deepEqual(results[i], empty, method);
   }
-  await run('find', () => col.find({}), []);
-  await run('findOne', () => col.findOne({}), null);
-  await run('exists', () => col.exists({}), false);
-  await run('count', () => col.count({ name: 'x' }), 0);
-  await run('distinct', () => col.distinct('x', {}), []);
-  await run('save', () => col.save({ a: 1 }), null);
-  await run('saveAll', () => col.saveAll([{ a: 1 }]), []);
-  await run('update', () => col.update({ a: 1 }, { $set: { b: 1 } }), false);
-  await run('remove', () => col.remove({ a: 1 }), false);
-  await run(
-    'removeById',
-    () => col.removeById('507f1f77bcf86cd799439011'),
-    false
-  );
-  await run('createIndex', () => col.createIndex({ a: 1 }), null);
-  await run(
-    'each',
-    async () => {
-      const out = [];
-      for await (const doc of col.each({})) out.push(doc);
-      return out;
-    },
-    []
-  );
-  const broken = Object.entries(survey).filter(
-    ([, v]) => v.threw || !v.gotDefault
-  );
-  assert.equal(
-    broken.length,
-    0,
-    `methods broken: ${broken.map(([k, v]) => `${k}(${v.threw ?? 'wrong-default'})`).join(', ')}`
-  );
   await mongo.close();
 });
 
@@ -221,15 +103,8 @@ test('throwing onError: find still returns [] without throwing', async () => {
       throw new Error('onError hostile');
     }
   });
-  let threw = null;
-  let result;
-  try {
-    result = await mongo.collection('users').find({});
-  } catch (err) {
-    threw = err;
-  }
-  assert.equal(threw, null, 'fail-silent contract violated');
-  assert.deepEqual(result, []);
+
+  assert.deepEqual(await mongo.collection('users').find({}), []);
   await mongo.close();
 });
 
@@ -252,7 +127,7 @@ test('local onError: takes ownership — client onError and console.error stay s
   t.mock.method(console, 'error', (...args) => consoleCalls.push(args));
 
   let clientCalled = 0;
-  const captured = [];
+  const { captured, onError } = capture();
   const mongo = new MongoClient(UNREACHABLE, {
     onError: () => {
       clientCalled = clientCalled + 1;
@@ -261,10 +136,7 @@ test('local onError: takes ownership — client onError and console.error stay s
 
   const result = await mongo
     .collection('users')
-    .find(
-      { name: 'x' },
-      { onError: (err, ctx) => captured.push({ err, ctx }) }
-    );
+    .find({ name: 'x' }, { onError });
 
   assert.deepEqual(result, []);
   assert.equal(captured.length, 1);
@@ -279,12 +151,10 @@ test('local onError: takes ownership — client onError and console.error stay s
 });
 
 test('local onError: silent client does not suppress it', async () => {
-  const captured = [];
+  const { captured, onError } = capture();
   const mongo = new MongoClient(UNREACHABLE, { silent: true });
 
-  await mongo
-    .collection('users')
-    .find({}, { onError: (err) => captured.push(err) });
+  await mongo.collection('users').find({}, { onError });
 
   assert.equal(captured.length, 1);
   await mongo.close();
@@ -297,21 +167,16 @@ test('local onError: throwing handler does not break the call or fall back to th
       clientCalled = clientCalled + 1;
     }
   });
-  let threw = null;
-  let result;
-  try {
-    result = await mongo.collection('users').find(
-      {},
-      {
-        onError: () => {
-          throw new Error('local handler hostile');
-        }
+
+  const result = await mongo.collection('users').find(
+    {},
+    {
+      onError: () => {
+        throw new Error('local handler hostile');
       }
-    );
-  } catch (err) {
-    threw = err;
-  }
-  assert.equal(threw, null, 'fail-silent contract violated');
+    }
+  );
+
   assert.deepEqual(result, []);
   assert.equal(
     clientCalled,
@@ -346,68 +211,37 @@ test('local onError: hostile getter does not break the call', async () => {
   });
 
   // Catch path: the getter fires while reporting a swallowed driver error.
-  let threw = null;
-  let result;
-  try {
-    result = await mongo.collection('users').find({}, hostile);
-  } catch (err) {
-    threw = err;
-  }
-  assert.equal(threw, null, 'fail-silent contract violated');
-  assert.deepEqual(result, []);
+  assert.deepEqual(await mongo.collection('users').find({}, hostile), []);
 
   // Validation-reject path: the getter fires before any try block.
-  let blocked;
-  try {
-    blocked = await mongo
-      .collection('users')
-      .update({}, { $set: { a: 1 } }, hostile);
-  } catch (err) {
-    threw = err;
-  }
-  assert.equal(threw, null, 'fail-silent contract violated');
-  assert.equal(blocked, false);
+  assert.equal(
+    await mongo.collection('users').update({}, { $set: { a: 1 } }, hostile),
+    false
+  );
 
   await mongo.close();
 });
 
-test('local onError: every options-taking method routes to the local handler', async () => {
+test('local onError: every method routes a driver failure to the local handler', async () => {
   let clientCalled = 0;
   const mongo = new MongoClient(UNREACHABLE, {
     onError: () => {
       clientCalled = clientCalled + 1;
     }
   });
-  const col = mongo.collection('users');
+  const methods = everyMethod(mongo.collection('users'));
 
-  const survey = {};
-  async function run(label, fn) {
-    const local = [];
-    await fn((err, ctx) => local.push({ err, ctx }));
-    survey[label] = local.length >= 1 && local[0].ctx.method === label;
+  const reports = await Promise.all(
+    methods.map(async ({ call }) => {
+      const { captured, onError } = capture();
+      await call({ onError });
+      return captured;
+    })
+  );
+
+  for (const [i, { method, reportedAs }] of methods.entries()) {
+    assert.equal(reports[i][0]?.ctx.method, reportedAs ?? method, method);
   }
-
-  await run('find', (onError) => col.find({}, { onError }));
-  await run('findOne', (onError) => col.findOne({}, { onError }));
-  await run('exists', (onError) => col.exists({}, { onError }));
-  await run('count', (onError) => col.count({ name: 'x' }, { onError }));
-  await run('distinct', (onError) => col.distinct('x', {}, { onError }));
-  await run('save', (onError) => col.save({ a: 1 }, { onError }));
-  await run('saveAll', (onError) => col.saveAll([{ a: 1 }], { onError }));
-  await run('update', (onError) =>
-    col.update({ a: 1 }, { $set: { b: 1 } }, { onError })
-  );
-  await run('remove', (onError) => col.remove({ a: 1 }, { onError }));
-  await run('removeById', (onError) =>
-    col.removeById('507f1f77bcf86cd799439011', { onError })
-  );
-
-  const missed = Object.entries(survey).filter(([, ok]) => !ok);
-  assert.equal(
-    missed.length,
-    0,
-    `methods not routing locally: ${missed.map(([k]) => k).join(', ')}`
-  );
   assert.equal(clientCalled, 0, 'client onError must stay silent');
   await mongo.close();
 });
@@ -485,65 +319,36 @@ test('never-throw: hostile getter in an ensureIndexes entry skips the entry', as
   await mongo.close();
 });
 
-test('async onError: a rejecting local handler never surfaces as unhandledRejection', async () => {
-  const leaked = [];
-  const trap = (reason) => leaked.push(reason);
-  process.on('unhandledRejection', trap);
+for (const level of ['local', 'client-level']) {
+  test(`async onError: a rejecting ${level} handler never surfaces as unhandledRejection`, async () => {
+    const leaked = [];
+    const trap = (reason) => leaked.push(reason);
+    process.on('unhandledRejection', trap);
 
-  try {
-    const mongo = new MongoClient(UNREACHABLE, { silent: true });
-    const result = await mongo.collection('users').find(
-      {},
-      {
-        onError: async () => {
-          throw new Error('async local reporter boom');
-        }
-      }
-    );
-    assert.deepEqual(result, []);
+    const handler = async () => {
+      throw new Error(`async ${level} reporter boom`);
+    };
 
-    // Let the rejected handler promise surface if it was going to.
-    await new Promise((resolve) => {
-      setImmediate(resolve);
-    });
-    await new Promise((resolve) => {
-      setImmediate(resolve);
-    });
-    assert.deepEqual(leaked, []);
+    try {
+      const mongo =
+        level === 'local'
+          ? new MongoClient(UNREACHABLE, { silent: true })
+          : new MongoClient(UNREACHABLE, { onError: handler });
+      const options = level === 'local' ? { onError: handler } : undefined;
 
-    await mongo.close();
-  } finally {
-    process.off('unhandledRejection', trap);
-  }
-});
+      assert.deepEqual(await mongo.collection('users').find({}, options), []);
 
-test('async onError: a rejecting client-level handler never surfaces as unhandledRejection', async () => {
-  const leaked = [];
-  const trap = (reason) => leaked.push(reason);
-  process.on('unhandledRejection', trap);
+      // Let the rejected handler promise surface if it was going to.
+      await tick();
+      await tick();
+      assert.deepEqual(leaked, []);
 
-  try {
-    const mongo = new MongoClient(UNREACHABLE, {
-      onError: async () => {
-        throw new Error('async client reporter boom');
-      }
-    });
-    const result = await mongo.collection('users').find({});
-    assert.deepEqual(result, []);
-
-    await new Promise((resolve) => {
-      setImmediate(resolve);
-    });
-    await new Promise((resolve) => {
-      setImmediate(resolve);
-    });
-    assert.deepEqual(leaked, []);
-
-    await mongo.close();
-  } finally {
-    process.off('unhandledRejection', trap);
-  }
-});
+      await mongo.close();
+    } finally {
+      process.off('unhandledRejection', trap);
+    }
+  });
+}
 
 test('local onError: validation rejects route to the local handler', async () => {
   let clientCalled = 0;
