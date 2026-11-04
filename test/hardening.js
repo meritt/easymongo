@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { describe, test, before, after, beforeEach } from 'node:test';
 
-import { ObjectId } from 'mongodb';
+import { BSONRegExp, ObjectId, UUID } from 'mongodb';
 
 import { MongoClient } from '../lib/index.js';
 import { prepare, prepareQuery } from '../lib/prepare.js';
-import { wipe as wipeNames } from './helpers.js';
+import { capture, wipe as wipeNames } from './helpers.js';
 
 const COLLECTION = `easymongo_hardening_${randomUUID()}`;
 const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
@@ -60,6 +60,61 @@ describe('a null id alias never matches every document', () => {
     assert.deepEqual(prepare({ id: undefined, a: 1 }), { a: 1 });
     assert.equal(Object.hasOwn(prepare({ _id: 5, id: 7 }), 'id'), false);
     assert.equal(prepare({ _id: 5, id: 7 })._id, 5);
+  });
+});
+
+describe('the id slot accepts scalar ids only', () => {
+  class Smuggled {
+    constructor() {
+      this.$ne = null;
+    }
+  }
+
+  const hostile = {
+    Map: () => new Map([['$ne', null]]),
+    'prototype object': () => Object.assign(Object.create({}), { $ne: null }),
+    'class instance': () => new Smuggled(),
+    RegExp: () => /./,
+    BSONRegExp: () => new BSONRegExp('.', ''),
+    'Date with toBSON': () =>
+      Object.assign(new Date(), { toBSON: () => ({ $ne: null }) }),
+    array: () => ['a'],
+    function: () => () => {}
+  };
+
+  for (const [label, make] of Object.entries(hostile)) {
+    test(`findById/removeById/save reject a ${label} id`, async () => {
+      await docs.saveAll([{ _id: 'victim-1' }, { _id: 'victim-2' }]);
+      const { captured, onError } = capture();
+
+      assert.equal(await docs.findById(make()), null);
+      assert.equal(await docs.removeById(make(), { onError }), false);
+      assert.equal(await docs.save({ _id: make(), x: 1 }, { onError }), null);
+      assert.deepEqual(await docs.saveAll([{ _id: make() }], { onError }), []);
+
+      assert.equal(captured.length, 3);
+      assert.equal(await rawCount(), 2);
+    });
+  }
+
+  test('scalar ids of every common type are still accepted', async () => {
+    const ids = [
+      'plain-string',
+      42,
+      12n,
+      new ObjectId(),
+      new UUID(),
+      new Date('2026-01-01T00:00:00Z')
+    ];
+
+    for (const id of ids) {
+      // oxlint-disable-next-line no-await-in-loop
+      assert.ok(await docs.save({ _id: id, v: 1 }), String(id));
+      // oxlint-disable-next-line no-await-in-loop
+      assert.ok(await docs.findById(id), String(id));
+      // oxlint-disable-next-line no-await-in-loop
+      assert.equal(await docs.removeById(id), true, String(id));
+    }
   });
 });
 

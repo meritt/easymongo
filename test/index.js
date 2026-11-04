@@ -5,6 +5,7 @@ import { describe, test, before, after, beforeEach } from 'node:test';
 import { ObjectId } from 'mongodb';
 
 import { MongoClient } from '../lib/index.js';
+import { capture } from './helpers.js';
 
 const COLLECTION = `easymongo_test_${randomUUID()}`;
 const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
@@ -568,31 +569,63 @@ describe('removeById', () => {
 });
 
 describe('empty filter guard', () => {
-  test('update(null) returns false and does not modify collection', async () => {
-    await users.saveAll([{ name: 'A' }, { name: 'B' }]);
-    const result = await users.update(null, { $set: { url: 'x' } });
-    assert.equal(result, false);
-    const all = await users.find();
-    assert.equal(all.length, 2);
-    for (const doc of all) {
-      assert.equal(doc.url, undefined);
+  // `{name: undefined}` would serialize to `{name: null}`, which matches every
+  // document missing the field: an empty filter in disguise. The rest hold no
+  // data: a filter with its own toBSON, and function or symbol values.
+  const EMPTY_FILTERS = [
+    ['null', () => null],
+    ['undefined', () => undefined],
+    ['{}', () => ({})],
+    ['{name: undefined}', () => ({ name: undefined })],
+    ['a toBSON hook', () => ({ name: 'A', toBSON: () => ({}) })],
+    ['a function value', () => ({ _id: () => 'A' })],
+    ['a function id alias', () => ({ id: () => 'A' })],
+    ['a symbol value', () => ({ name: Symbol('A') })]
+  ];
+  const WRITES = {
+    update: (filter, options) =>
+      users.update(filter, { $set: { url: 'x' } }, options),
+    remove: (filter, options) => users.remove(filter, options)
+  };
+
+  for (const [method, write] of Object.entries(WRITES)) {
+    for (const [label, make] of EMPTY_FILTERS) {
+      test(`${method}(${label}) is rejected, reported, and touches nothing`, async () => {
+        await users.saveAll([{ name: 'A' }, { other: 1 }]);
+        const { captured, onError } = capture();
+
+        assert.equal(await write(make(), { onError }), false);
+        assert.equal(captured.length, 1);
+        assert.equal(captured[0].ctx.method, method);
+        assert.equal(captured[0].ctx.collection, COLLECTION);
+        assert.match(captured[0].err.message, /empty filter/i);
+
+        const all = await users.find();
+        assert.equal(all.length, 2);
+        assert.ok(all.every((doc) => doc.url === undefined));
+      });
     }
-  });
+  }
 
-  test('update(undefined) returns false and does not modify', async () => {
-    await users.save({ name: 'A' });
-    const result = await users.update(undefined, { $set: { url: 'x' } });
-    assert.equal(result, false);
-    const doc = await users.findOne({ name: 'A' });
-    assert.equal(doc.url, undefined);
-  });
+  test('a filter getter is read once, so the guarded value is the one sent', async () => {
+    await users.saveAll([{ name: 'A' }, { other: 1 }]);
+    const blanking = () => {
+      let reads = 0;
+      return {
+        get name() {
+          reads = reads + 1;
+          return reads > 1 ? undefined : 'A';
+        }
+      };
+    };
 
-  test('update({}) returns false and does not modify', async () => {
-    await users.save({ name: 'A' });
-    const result = await users.update({}, { $set: { url: 'x' } });
-    assert.equal(result, false);
-    const doc = await users.findOne({ name: 'A' });
-    assert.equal(doc.url, undefined);
+    assert.equal(await users.update(blanking(), { $set: { url: 'x' } }), true);
+    assert.equal(await users.count({ url: 'x' }), 1);
+    assert.equal(await users.remove(blanking()), true);
+    assert.deepEqual(
+      (await users.find()).map(({ other }) => other),
+      [1]
+    );
   });
 
   test('update with explicit query still works (control)', async () => {
@@ -603,49 +636,10 @@ describe('empty filter guard', () => {
     assert.equal(doc.url, 'x');
   });
 
-  test('remove(null) returns false and does not delete', async () => {
-    await users.saveAll([{ name: 'A' }, { name: 'B' }]);
-    assert.equal(await users.remove(null), false);
-    assert.equal(await users.count(), 2);
-  });
-
-  test('remove(undefined) returns false and does not delete', async () => {
-    await users.save({ name: 'A' });
-    assert.equal(await users.remove(undefined), false);
-    assert.equal(await users.count(), 1);
-  });
-
-  test('remove({}) returns false and does not delete', async () => {
-    await users.save({ name: 'A' });
-    assert.equal(await users.remove({}), false);
-    assert.equal(await users.count(), 1);
-  });
-
   test('remove with explicit query still works (control)', async () => {
     await users.saveAll([{ name: 'A' }, { name: 'B' }]);
     assert.equal(await users.remove({ name: 'A' }), true);
     assert.equal(await users.count(), 1);
-  });
-
-  test('filter with only undefined values is rejected (update)', async () => {
-    await users.saveAll([{ name: 'A' }, { name: 'B' }]);
-    // {name: undefined} would serialize to {name: null}, which matches docs
-    // where the field is missing — effectively an empty filter.
-    const result = await users.update(
-      { name: undefined },
-      { $set: { url: 'x' } }
-    );
-    assert.equal(result, false);
-    const all = await users.find();
-    for (const doc of all) {
-      assert.equal(doc.url, undefined);
-    }
-  });
-
-  test('filter with only undefined values is rejected (remove)', async () => {
-    await users.saveAll([{ name: 'A' }, { other: 1 }]);
-    assert.equal(await users.remove({ name: undefined }), false);
-    assert.equal(await users.count(), 2);
   });
 
   test('filter mixing undefined and defined keys still works', async () => {
@@ -660,42 +654,6 @@ describe('empty filter guard', () => {
     filter.name = 'A';
     assert.equal(await users.remove(filter), true);
     assert.equal(await users.count(), 1);
-  });
-
-  test('onError receives ctx for blocked update', async () => {
-    const captured = [];
-    const local = new MongoClient(
-      { dbname: 'test' },
-      { onError: (err, ctx) => captured.push({ err, ctx }) }
-    );
-    const col = local.collection(COLLECTION);
-
-    await col.update(null, { $set: { x: 1 } });
-
-    assert.equal(captured.length, 1);
-    assert.equal(captured[0].ctx.method, 'update');
-    assert.equal(captured[0].ctx.collection, COLLECTION);
-    assert.match(captured[0].err.message, /empty filter/i);
-
-    await local.close();
-  });
-
-  test('onError receives ctx for blocked remove', async () => {
-    const captured = [];
-    const local = new MongoClient(
-      { dbname: 'test' },
-      { onError: (err, ctx) => captured.push({ err, ctx }) }
-    );
-    const col = local.collection(COLLECTION);
-
-    await col.remove({});
-
-    assert.equal(captured.length, 1);
-    assert.equal(captured[0].ctx.method, 'remove');
-    assert.equal(captured[0].ctx.collection, COLLECTION);
-    assert.match(captured[0].err.message, /empty filter/i);
-
-    await local.close();
   });
 
   test('silent: true suppresses guard report', async () => {
