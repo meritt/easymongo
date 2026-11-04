@@ -118,6 +118,33 @@ describe('the id slot accepts scalar ids only', () => {
   });
 });
 
+describe('saveAll never reports a write that did not happen', () => {
+  test('a bulk error without writeErrors resolves to []', async (t) => {
+    const native = await mongo.open(COLLECTION);
+    t.mock.method(native, 'insertMany', async () => {
+      throw Object.assign(new Error('client-side failure'), {
+        insertedIds: { 0: new ObjectId(), 1: new ObjectId() }
+      });
+    });
+
+    assert.deepEqual(await docs.saveAll([{ a: 1 }, { a: 2 }]), []);
+  });
+
+  test('a real duplicate-key failure still resolves to the inserted subset', async () => {
+    await docs.save({ _id: 'dup' });
+    const result = await docs.saveAll([
+      { _id: 'a' },
+      { _id: 'dup' },
+      { _id: 'b' }
+    ]);
+
+    assert.deepEqual(
+      result.map((d) => d._id),
+      ['a', 'b']
+    );
+  });
+});
+
 describe('count never scans with a clause it cannot inspect', () => {
   test('a Map, class-instance, or toBSON clause collapses to 0 instead of falling back', async () => {
     await docs.saveAll([{ n: 1 }, { n: 2 }]);
