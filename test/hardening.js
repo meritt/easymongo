@@ -118,6 +118,40 @@ describe('the id slot accepts scalar ids only', () => {
   });
 });
 
+describe('count never scans with a clause it cannot inspect', () => {
+  test('a Map, class-instance, or toBSON clause collapses to 0 instead of falling back', async () => {
+    await docs.saveAll([{ n: 1 }, { n: 2 }]);
+    const captured = [];
+    const local = new MongoClient(
+      { dbname: 'test' },
+      { onError: (err) => captured.push(err.message) }
+    );
+    const col = local.collection(COLLECTION);
+    const where = 'true';
+    const hook = () => ({ $where: where });
+
+    try {
+      const counts = await Promise.all(
+        [
+          { $and: [new Map([['$where', where]])] },
+          Object.assign(new (class {})(), { $where: where }),
+          { $and: [{ n: 1, toBSON: hook }] },
+          { n: 1, toBSON: hook }
+        ].map((filter) => col.count(filter))
+      );
+
+      assert.deepEqual(counts, [0, 0, 0, 0]);
+      assert.equal(
+        captured.some((m) => m.startsWith('count() fallback')),
+        false,
+        'no scan fallback ran'
+      );
+    } finally {
+      await local.close();
+    }
+  });
+});
+
 describe('prepareQuery stays linear on shared clauses', () => {
   test('a deeply shared $or DAG normalizes quickly and keeps sharing', () => {
     let node = { _id: new ObjectId().toString() };

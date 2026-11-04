@@ -80,6 +80,11 @@ describe('count', () => {
     );
   });
 
+  test('a non-empty Map filter is counted, not estimated', async () => {
+    await users.saveAll([{ a: 1 }, { a: 2 }, { a: 3 }]);
+    assert.equal(await users.count(new Map([['a', 1]])), 1);
+  });
+
   test('$where does not trigger the scan fallback; collapses to 0', async () => {
     const captured = [];
     const local = new MongoClient(
@@ -95,10 +100,6 @@ describe('count', () => {
       { name: 'D', age: 25 }
     ]);
 
-    // countDocuments rejects $where ($where is disallowed inside its $match
-    // aggregation stage). Re-running it via the scan fallback would execute
-    // that JS against every document, so it must collapse to 0 instead of
-    // falling back.
     const n = await col.count({ $where: 'this.age > 30' });
     assert.equal(n, 0);
     assert.equal(captured.length, 1);
@@ -113,8 +114,6 @@ describe('count', () => {
       { name: 'B', age: 35 }
     ]);
 
-    // MongoDB validates $where recursively through logical operators, not
-    // just at the top level - a one-level check would miss this shape.
     const n = await users.count({
       $and: [{ name: { $exists: true } }, { $or: [{ $where: 'true' }] }]
     });
@@ -124,9 +123,6 @@ describe('count', () => {
   test('$where nested arbitrarily deep still collapses to 0, no scan', async () => {
     await users.saveAll([{ name: 'A' }, { name: 'B' }]);
 
-    // hasWhere() detects this via an iterative traversal, not a fixed depth
-    // cap - a depth-limited check would treat sufficiently deep nesting as
-    // "safe" and let the vulnerable scan fallback run.
     let filter = { $where: 'true' };
     for (let i = 0; i < 20; i = i + 1) {
       filter = { $and: [filter] };
@@ -179,7 +175,7 @@ describe('count', () => {
     assert.equal(findCalls, 0, 'find not called for a non-MongoServerError');
   });
 
-  test('hasWhere() safely skips a non-object entry and a duplicate reference inside $and', async (t) => {
+  test('mayHideWhere() safely skips a non-object entry and a duplicate reference inside $and', async (t) => {
     const native = await mongo.open(COLLECTION);
     t.mock.method(native, 'countDocuments', async () => {
       const err = new Error('synthetic uassert');
@@ -196,9 +192,6 @@ describe('count', () => {
     }));
 
     const shared = { a: 1 };
-    // A non-object array entry and a duplicate object reference both need to
-    // be skipped safely by hasWhere()'s traversal, without crashing or
-    // treating the duplicate as an infinite loop.
     const result = await users.count({
       $and: ['not-an-object', shared, shared]
     });
