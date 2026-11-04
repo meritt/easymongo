@@ -1,17 +1,18 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { describe, test, before, after, beforeEach } from 'node:test';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 import { MongoClient } from '../lib/index.js';
-import { SLOW_WHERE } from './helpers.js';
+import {
+  SEED,
+  SLOW_WHERE,
+  capture,
+  everyMethod,
+  wipe as wipeNames
+} from './helpers.js';
 
 const COLLECTION = `easymongo_abort_${randomUUID()}`;
-
-function abortedSignal() {
-  const ctrl = new AbortController();
-  ctrl.abort();
-  return ctrl.signal;
-}
 
 async function withClient(fn) {
   const captured = [];
@@ -28,10 +29,7 @@ async function withClient(fn) {
 
 const seedClient = new MongoClient({ dbname: 'test' }, { silent: true });
 
-async function wipe() {
-  const native = await seedClient.open(COLLECTION);
-  await native.deleteMany({});
-}
+const wipe = () => wipeNames(seedClient, COLLECTION);
 
 before(wipe);
 after(async () => {
@@ -41,145 +39,22 @@ after(async () => {
 beforeEach(wipe);
 
 describe('AbortSignal — pre-aborted collapses to empty default', () => {
-  test('find returns []', async () => {
-    await withClient(async (mongo, captured) => {
-      const col = mongo.collection(COLLECTION);
-      await col.save({ name: 'A' });
-      const result = await col.find({}, { signal: abortedSignal() });
-      assert.deepEqual(result, []);
+  for (const { method, call, empty, reportedAs } of everyMethod(
+    seedClient.collection(COLLECTION)
+  )) {
+    test(`${method} returns ${JSON.stringify(empty)}`, async () => {
+      await seedClient.collection(COLLECTION).save({ ...SEED });
+      const { captured, onError } = capture();
+
+      assert.deepEqual(
+        await call({ signal: AbortSignal.abort(), onError }),
+        empty
+      );
       assert.equal(captured.length, 1);
-      assert.equal(captured[0].ctx.method, 'find');
-      // The abort itself must be reported, not an unrelated failure.
+      assert.equal(captured[0].ctx.method, reportedAs ?? method);
       assert.match(captured[0].err.name, /Abort|MongoAPIError/);
     });
-  });
-
-  test('findOne returns null', async () => {
-    await withClient(async (mongo, captured) => {
-      const col = mongo.collection(COLLECTION);
-      await col.save({ name: 'A' });
-      const result = await col.findOne(
-        { name: 'A' },
-        { signal: abortedSignal() }
-      );
-      assert.equal(result, null);
-      assert.equal(captured.length, 1);
-      assert.equal(captured[0].ctx.method, 'findOne');
-    });
-  });
-
-  test('exists returns false', async () => {
-    await withClient(async (mongo, captured) => {
-      const col = mongo.collection(COLLECTION);
-      await col.save({ name: 'A' });
-      const result = await col.exists(
-        { name: 'A' },
-        { signal: abortedSignal() }
-      );
-      assert.equal(result, false);
-      assert.equal(captured.length, 1);
-      assert.equal(captured[0].ctx.method, 'exists');
-    });
-  });
-
-  test('count returns 0', async () => {
-    await withClient(async (mongo, captured) => {
-      const col = mongo.collection(COLLECTION);
-      await col.save({ name: 'A' });
-      const result = await col.count({}, { signal: abortedSignal() });
-      assert.equal(result, 0);
-      assert.equal(captured.length, 1);
-      assert.equal(captured[0].ctx.method, 'count');
-    });
-  });
-
-  test('distinct returns []', async () => {
-    await withClient(async (mongo, captured) => {
-      const col = mongo.collection(COLLECTION);
-      await col.save({ tag: 'a' });
-      const result = await col.distinct('tag', {}, { signal: abortedSignal() });
-      assert.deepEqual(result, []);
-      assert.equal(captured.length, 1);
-      assert.equal(captured[0].ctx.method, 'distinct');
-    });
-  });
-
-  test('save returns null (insert path)', async () => {
-    await withClient(async (mongo, captured) => {
-      const col = mongo.collection(COLLECTION);
-      const result = await col.save({ name: 'A' }, { signal: abortedSignal() });
-      assert.equal(result, null);
-      assert.equal(captured.length, 1);
-      assert.equal(captured[0].ctx.method, 'save');
-    });
-  });
-
-  test('saveAll returns []', async () => {
-    await withClient(async (mongo, captured) => {
-      const col = mongo.collection(COLLECTION);
-      const result = await col.saveAll([{ name: 'A' }, { name: 'B' }], {
-        signal: abortedSignal()
-      });
-      assert.deepEqual(result, []);
-      assert.equal(captured.length, 1);
-      assert.equal(captured[0].ctx.method, 'saveAll');
-    });
-  });
-
-  test('update returns false', async () => {
-    await withClient(async (mongo, captured) => {
-      const col = mongo.collection(COLLECTION);
-      await col.save({ name: 'A' });
-      const result = await col.update(
-        { name: 'A' },
-        { $set: { x: 1 } },
-        { signal: abortedSignal() }
-      );
-      assert.equal(result, false);
-      assert.equal(captured.length, 1);
-      assert.equal(captured[0].ctx.method, 'update');
-    });
-  });
-
-  test('remove returns false', async () => {
-    await withClient(async (mongo, captured) => {
-      const col = mongo.collection(COLLECTION);
-      await col.save({ name: 'A' });
-      const result = await col.remove(
-        { name: 'A' },
-        { signal: abortedSignal() }
-      );
-      assert.equal(result, false);
-      assert.equal(captured.length, 1);
-      assert.equal(captured[0].ctx.method, 'remove');
-    });
-  });
-
-  test('removeById returns false', async () => {
-    await withClient(async (mongo, captured) => {
-      const col = mongo.collection(COLLECTION);
-      const created = await col.save({ name: 'A' });
-      const result = await col.removeById(created._id, {
-        signal: abortedSignal()
-      });
-      assert.equal(result, false);
-      assert.equal(captured.length, 1);
-      assert.equal(captured[0].ctx.method, 'removeById');
-    });
-  });
-
-  test('createIndex returns null', async () => {
-    await withClient(async (mongo, captured) => {
-      const col = mongo.collection(COLLECTION);
-      const result = await col.createIndex(
-        { aborted: 1 },
-        { signal: abortedSignal() }
-      );
-      assert.equal(result, null);
-      assert.equal(captured.length, 1);
-      assert.equal(captured[0].ctx.method, 'createIndex');
-    });
-  });
+  }
 });
 
 describe('AbortSignal — aborting mid-flight', () => {
@@ -258,7 +133,7 @@ describe('timeout option — deadline cancels a slow operation', () => {
     });
   });
 
-  test('count collapses to 0 when the timeout fires (withSignal path)', async () => {
+  test('count collapses to 0 when the timeout fires', async () => {
     await withClient(async (mongo) => {
       const col = mongo.collection(COLLECTION);
       await col.saveAll([{ n: 1 }, { n: 2 }, { n: 3 }]);
@@ -281,6 +156,36 @@ describe('timeout option — deadline cancels a slow operation', () => {
   });
 });
 
+describe('timeout option — the deadline ends with the operation', () => {
+  test('a settled find/each leaves no live deadline behind', async (t) => {
+    await withClient(async (mongo) => {
+      const col = mongo.collection(COLLECTION);
+      await col.save({ name: 'A' });
+
+      const native = await mongo.open(COLLECTION);
+      const signals = [];
+      const find = native.find.bind(native);
+      t.mock.method(native, 'find', (filter, opts) => {
+        signals.push(opts.signal);
+        return find(filter, opts);
+      });
+
+      assert.equal((await col.find({}, { timeout: 50 })).length, 1);
+      assert.equal(
+        (await Array.fromAsync(col.each({}, { timeout: 50 }))).length,
+        1
+      );
+
+      await sleep(150);
+      assert.equal(signals.length, 2);
+      assert.deepEqual(
+        signals.map((s) => s.aborted),
+        [false, false]
+      );
+    });
+  });
+});
+
 describe('timeout option — composes and stays out of the way', () => {
   test('a fast operation under a generous timeout returns normally', async () => {
     await withClient(async (mongo) => {
@@ -297,7 +202,7 @@ describe('timeout option — composes and stays out of the way', () => {
       await col.save({ name: 'A' });
       const result = await col.find(
         {},
-        { signal: abortedSignal(), timeout: 5000 }
+        { signal: AbortSignal.abort(), timeout: 5000 }
       );
       assert.deepEqual(result, []);
       assert.equal(captured[0]?.ctx.method, 'find');

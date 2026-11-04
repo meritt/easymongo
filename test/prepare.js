@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import { ObjectId } from 'mongodb';
 
-import { prepare, prepareId } from '../lib/prepare.js';
+import { prepare, prepareId, prepareQuery } from '../lib/prepare.js';
 
 const HEX = '4e4e1638c85e808431000003';
 
@@ -149,4 +149,66 @@ test('prepare: mixed scalar operator combo is coerced once', () => {
 test('prepare: scalar operator with invalid hex passes through untouched', () => {
   const out = prepare({ _id: { $ne: 'not a hex' } });
   assert.equal(out._id.$ne, 'not a hex');
+});
+
+for (const op of ['$and', '$or', '$nor']) {
+  test(`prepareQuery: _id inside ${op} is coerced to ObjectId`, () => {
+    const out = prepareQuery({ [op]: [{ _id: HEX }, { name: 'x' }] });
+    assert.ok(out[op][0]._id instanceof ObjectId);
+    assert.equal(out[op][0]._id.toString(), HEX);
+    assert.deepEqual(out[op][1], { name: 'x' });
+  });
+}
+
+test('prepareQuery: id alias inside $or is rewritten to _id', () => {
+  const out = prepareQuery({ $or: [{ id: HEX }] });
+  assert.ok(out.$or[0]._id instanceof ObjectId);
+  assert.equal(Object.hasOwn(out.$or[0], 'id'), false);
+});
+
+test('prepareQuery: nested logical operators are normalized at every depth', () => {
+  const out = prepareQuery({
+    $and: [{ $or: [{ $nor: [{ _id: { $in: [HEX] } }] }] }]
+  });
+  assert.ok(out.$and[0].$or[0].$nor[0]._id.$in[0] instanceof ObjectId);
+});
+
+test('prepareQuery: top level still goes through prepare()', () => {
+  const out = prepareQuery({ _id: HEX, $or: [{ a: 1 }] });
+  assert.ok(out._id instanceof ObjectId);
+  assert.deepEqual(prepareQuery(null), {});
+});
+
+test('prepareQuery: input is never mutated', () => {
+  const clause = { _id: HEX };
+  const query = { $or: [clause] };
+  prepareQuery(query);
+  assert.equal(clause._id, HEX);
+  assert.equal(query.$or[0], clause);
+});
+
+test('prepareQuery: non-object clauses and non-array operators pass through', () => {
+  const out = prepareQuery({ $or: [null, 42, 'x'], $and: 'nope' });
+  assert.deepEqual(out.$or, [null, 42, 'x']);
+  assert.equal(out.$and, 'nope');
+});
+
+test('prepareQuery: a self-referential filter terminates', () => {
+  const query = { _id: HEX };
+  query.$or = [query];
+  const out = prepareQuery(query);
+  assert.ok(out._id instanceof ObjectId);
+  assert.equal(out.$or[0], query);
+});
+
+test('prepareQuery: a shared (non-cyclic) clause is normalized in both places', () => {
+  const shared = { _id: HEX };
+  const out = prepareQuery({ $and: [shared, shared] });
+  assert.ok(out.$and[0]._id instanceof ObjectId);
+  assert.ok(out.$and[1]._id instanceof ObjectId);
+});
+
+test('prepareQuery: documents are not its concern — prepare() leaves $or alone', () => {
+  const out = prepare({ $or: [{ _id: HEX }] });
+  assert.equal(out.$or[0]._id, HEX);
 });

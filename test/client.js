@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { MongoClient } from '../lib/index.js';
+import { UNREACHABLE } from './helpers.js';
 
 test('open() called during an in-flight close() is rejected, not given a new pool', async () => {
   const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
@@ -13,9 +14,6 @@ test('open() called during an in-flight close() is rejected, not given a new poo
 
   await Promise.allSettled([first, closed, second]);
 
-  // _closed is set synchronously at the top of close(), before any teardown
-  // I/O - so `second`, called right after, never gets a fresh client that
-  // could outlive this call and go unclosed.
   assert.equal(mongo.client, null, 'no orphaned pool survives a close() race');
   assert.equal(mongo.db, null);
   assert.equal(await second, 0, 'racing open collapses to the empty default');
@@ -39,8 +37,7 @@ test('open() races close(): collection method emits with explicit error message'
 
   assert.equal(result, 0, 'collapsed to empty default');
   const messages = captured.map((c) => c.err?.message ?? '');
-  // Either the dedicated guard fired, or the driver itself rejected the
-  // closed connection; both paths must surface a useful message.
+  // The wrapper's guard or the driver's own rejection, whichever wins.
   const useful = messages.some(
     (m) =>
       /client closed during open/i.test(m) ||
@@ -61,8 +58,7 @@ test('open() guard: connect settling after close() collapses to the empty defaul
     { onError: (err, ctx) => captured.push({ err, ctx }) }
   );
 
-  // Deterministic interleaving: connect settles after close() cleared state,
-  // so open() must hit its `!this.db` guard instead of using a torn-down client.
+  // The connect settles after close() cleared the state.
   mongo._connecting = Promise.resolve();
   mongo.client = null;
   mongo.db = null;
@@ -98,8 +94,7 @@ test('close(): native close error is swallowed and reported as {method: close}',
   assert.equal(mongo.client, null);
   assert.equal(mongo.db, null);
 
-  // Release the connection the throwing stub left open, or the test process
-  // never exits.
+  // The stub left the connection open; the process would never exit.
   await original();
 });
 
@@ -117,8 +112,6 @@ test('reopen attempted synchronously after close() is rejected, original client 
 
   const firstClose = mongo.close();
 
-  // Same synchronous-close invariant as the test above: the reopen must not
-  // get a fresh client before firstClose's teardown I/O even starts.
   const reopen = mongo.collection('easymongo_close_reopen').count();
 
   await Promise.allSettled([firstClose, reopen]);
@@ -145,4 +138,50 @@ test('concurrent close() calls share one teardown', async () => {
 
   assert.equal(closeCount, 1, 'native close called exactly once');
   assert.equal(mongo.client, null);
+});
+
+// The client option overrides the URI's 50 ms selection timeout.
+test('timeout bounds the connect phase on an unreachable server', async () => {
+  const captured = [];
+  const mongo = new MongoClient(UNREACHABLE, {
+    serverSelectionTimeoutMS: 10_000,
+    onError: (err, ctx) => captured.push({ err, ctx })
+  });
+  const users = mongo.collection('easymongo_unreachable');
+
+  const started = performance.now();
+  const docs = await users.find({}, { timeout: 150 });
+  const elapsed = performance.now() - started;
+
+  assert.deepEqual(docs, []);
+  assert.ok(elapsed < 2000, `deadline ignored during connect: ${elapsed}ms`);
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0].ctx.method, 'find');
+
+  await mongo.close();
+});
+
+test('caller abort ends a pending connect for that call only', async () => {
+  const mongo = new MongoClient(UNREACHABLE, {
+    silent: true,
+    serverSelectionTimeoutMS: 1000
+  });
+  const users = mongo.collection('easymongo_unreachable');
+  const ctrl = new AbortController();
+
+  const started = performance.now();
+  const aborted = users.count({ a: 1 }, { signal: ctrl.signal });
+  const waiting = users.count({ a: 1 });
+  setTimeout(() => ctrl.abort(), 50);
+
+  assert.equal(await aborted, 0);
+  assert.ok(performance.now() - started < 900, 'aborted call returned early');
+
+  assert.equal(await waiting, 0);
+  assert.ok(
+    performance.now() - started >= 900,
+    'the shared connect kept running for the call without a signal'
+  );
+
+  await mongo.close();
 });

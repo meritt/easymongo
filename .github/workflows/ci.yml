@@ -6,66 +6,96 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: read
+permissions: {}
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  guard:
+    name: Guard
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+        with:
+          cache: true
+
+      - name: Lint
+        run: pnpm lint --format=github
+
+      - name: Format
+        run: pnpm format:check
+
+      - name: Audit
+        run: pnpm audit --prod
+
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
 
     strategy:
       fail-fast: false
       matrix:
-        node-version: ["24.x", "26.x"]
-        mongo-version: ["7.0", "8.0", "8.2", "8.3"]
+        node: [24, 26]
+        # 8.0 and 8.3 exit at startup on the runner kernel (Ubuntu reports
+        # 7.0.0-NN, so the 7.0.14 exemption misses it). Restore them once
+        # SERVER-136848 ships: https://jira.mongodb.org/browse/SERVER-136848
+        mongo: ["7.0", "9.0"]
         include:
-          - node-version: "24.x"
-            mongo-version: "8.3"
+          - node: 26
+            mongo: "9.0"
             coverage: true
 
+    # Official images by minor tag, not digest: Dependabot does not update
+    # digests under `services:`, and a digest nobody moves stops testing the
+    # server patches users actually run.
     services:
       mongo:
-        image: mongo:${{ matrix.mongo-version }}
+        image: mongo:${{ matrix.mongo }}
         ports:
           - 27017:27017
         options: >-
           --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping: 1})'"
-          --health-interval 10s
+          --health-interval 2s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 25
           --health-start-period 20s
 
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v6
+      - name: Setup
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: pnpm
+          runtime: node@${{ matrix.node }}
+          cache: true
 
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint --format=github
-      - run: pnpm format:check
-
-      - if: ${{ !matrix.coverage }}
-        run: pnpm test
+      - name: Test
+        run: pnpm ${{ matrix.coverage && 'coverage' || 'test' }}
 
       - name: Coverage
-        if: matrix.coverage
-        run: pnpm coverage
-
-      - name: Upload coverage to Coveralls
-        if: matrix.coverage
-        uses: coverallsapp/github-action@v2
+        if: ${{ matrix.coverage }}
+        uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
         with:
           file: coverage/lcov.info
           format: lcov
