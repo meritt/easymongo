@@ -42,6 +42,11 @@ export function everyMethod(col) {
       call: (o) => col.update({ a: 1 }, { $set: { b: 1 } }, o),
       empty: false
     },
+    {
+      method: 'updateOne',
+      call: (o) => col.updateOne({ a: 1 }, { $set: { b: 1 } }, o),
+      empty: false
+    },
     { method: 'remove', call: (o) => col.remove({ a: 1 }, o), empty: false },
     {
       method: 'removeById',

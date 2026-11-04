@@ -48,10 +48,11 @@ The connection opens lazily on the first I/O call. Concurrent first calls share 
 
 This is a thin wrapper, not a sanitizing layer. Read this before pointing it at request input.
 
-- **Filters reach the driver unsanitized on every method.** `find`, `findOne`, `exists`, `count`, `distinct`, `update`, `remove`, and `each()` (easy to miss, since it's the streaming path) all pass the query through as-is, `$where`, `$function`, and `$expr` included, so an untrusted filter can run JavaScript on the server.
-- **The update-document is unsanitized too.** `update()`'s 2nd argument applies exactly as given; an untrusted `$set`/`$inc` payload is a mass-assignment vector.
+- **Filters reach the driver unsanitized on every method.** `find`, `findOne`, `exists`, `count`, `distinct`, `update`, `updateOne`, `remove`, and `each()` (easy to miss, since it's the streaming path) all pass the query through as-is, `$where`, `$function`, and `$expr` included, so an untrusted filter can run JavaScript on the server.
+- **The update-document is unsanitized too.** `update()`/`updateOne()`'s 2nd argument applies exactly as given; an untrusted `$set`/`$inc` payload is a mass-assignment vector.
+- **With `upsert: true`, the filter becomes data.** When nothing matches, the equality fields of the filter are written into the inserted document. An untrusted filter on an upsert is a mass-assignment vector in its own right, even with a hand-built update-document.
 - **`options.fields`/`projection`/`sort` aren't sanitized either.** The fail-closed array whitelist only blocks a degenerate input (`[]`, `['__proto__']`); `fields: ['password']` is a valid whitelist entry and goes straight through. A projection object, including `findById`'s positional `fields`, accepts aggregation expressions, so `{ x: { $function: ... } }` runs JavaScript on the server.
-- **The guarded surfaces** are the `_id` slot (anything but a scalar id is rejected by `findById`/`removeById` and in `save`/`saveAll` documents), the empty-filter guard on `update`/`remove`. They fail closed and are syntactic: each reads the top level of the copy that is sent (getters run once) and does not predict what the serializer or the server makes of deeper values. The empty-filter guard stops a missing or blank filter, one with no key holding data (`undefined`, a function, or a symbol does not count, nor does a filter with its own `toBSON`), not one that matches everything by construction (`{ $and: [{}] }`, `{ $comment: 'x' }`).
+- **The guarded surfaces** are the `_id` slot (anything but a scalar id is rejected by `findById`/`removeById` and in `save`/`saveAll` documents), the empty-filter guard on `update`/`updateOne`/`remove`, the null-`_id` check on upserts. They fail closed and are syntactic: each reads the top level of the copy that is sent (getters run once) and does not predict what the serializer or the server makes of deeper values. The empty-filter guard stops a missing or blank filter, one with no key holding data (`undefined`, a function, or a symbol does not count, nor does a filter with its own `toBSON`), not one that matches everything by construction (`{ $and: [{}] }`, `{ $comment: 'x' }`).
 - **Collection names are trusted.** Every distinct name keeps a driver handle cached for the life of the client, and the name appears in reported errors, so derive it from your own code, not from a request.
 
 Never pass `req.body`/`req.query` directly as a query, an update-document, a pipeline, or an options object. Build and validate it yourself.
@@ -92,23 +93,24 @@ new MongoClient(server, options?)
 
 ## Collection methods
 
-| Method                              | Resolves to                            | Empty default      |
-| ----------------------------------- | -------------------------------------- | ------------------ |
-| `find(query?, options?)`            | `doc[]`                                | `[]`               |
-| `findOne(query?, options?)`         | `doc \| null`                          | `null`             |
-| `findById(id, fields?, options?)`   | `doc \| null`                          | `null`             |
-| `each(query?, options?)`            | `AsyncIterable<doc> & AsyncDisposable` | empty iteration    |
-| `exists(query?, options?)`          | `boolean`                              | `false`            |
-| `count(query?, options?)`           | `number`                               | `0`                |
-| `distinct(field, query?, options?)` | `any[]`                                | `[]`               |
-| `save(doc, options?)`               | `doc \| null`                          | `null`             |
-| `saveAll(docs, options?)`           | `doc[]`                                | `[]`               |
-| `update(query, $update, options?)`  | `boolean`                              | `false`            |
-| `remove(query, options?)`           | `boolean`                              | `false`            |
-| `removeById(id, options?)`          | `boolean`                              | `false`            |
-| `createIndex(spec, options?)`       | `string \| null`                       | `null`             |
-| `ensureIndexes(specs)`              | `string[]`                             | `[]`               |
-| `oid(value?)`                       | `ObjectId \| input`                    | fresh `ObjectId()` |
+| Method                                | Resolves to                            | Empty default      |
+| ------------------------------------- | -------------------------------------- | ------------------ |
+| `find(query?, options?)`              | `doc[]`                                | `[]`               |
+| `findOne(query?, options?)`           | `doc \| null`                          | `null`             |
+| `findById(id, fields?, options?)`     | `doc \| null`                          | `null`             |
+| `each(query?, options?)`              | `AsyncIterable<doc> & AsyncDisposable` | empty iteration    |
+| `exists(query?, options?)`            | `boolean`                              | `false`            |
+| `count(query?, options?)`             | `number`                               | `0`                |
+| `distinct(field, query?, options?)`   | `any[]`                                | `[]`               |
+| `save(doc, options?)`                 | `doc \| null`                          | `null`             |
+| `saveAll(docs, options?)`             | `doc[]`                                | `[]`               |
+| `update(query, $update, options?)`    | `boolean`                              | `false`            |
+| `updateOne(query, $update, options?)` | `boolean`                              | `false`            |
+| `remove(query, options?)`             | `boolean`                              | `false`            |
+| `removeById(id, options?)`            | `boolean`                              | `false`            |
+| `createIndex(spec, options?)`         | `string \| null`                       | `null`             |
+| `ensureIndexes(specs)`                | `string[]`                             | `[]`               |
+| `oid(value?)`                         | `ObjectId \| input`                    | fresh `ObjectId()` |
 
 Every async method accepts `options.signal: AbortSignal` and `options.timeout: ms` for cancellation (see [AbortSignal and timeout](#abortsignal-and-timeout)) and a per-operation `options.onError` reporter (see [Observability](#observability)); for `ensureIndexes`, pass them inside each entry's `options`. `findById` keeps the projection positional and takes these three keys, and only these, as its third argument: a projection map and an options object cannot be told apart in one slot. `oid(value?)` is synchronous: it coerces a valid 24-char hex string to `ObjectId`, mints a fresh one for nullish input, and returns anything else untouched.
 
@@ -215,13 +217,13 @@ await users.find({ _id: { $gt: '4e4e1638c85e808431000003' } }); // scalar compar
 await users.find({ $or: [{ id: '4e4e1638c85e808431000003' }, { email }] }); // inside $and/$or/$nor, at any depth
 ```
 
-The same rules apply to every filter (`find`, `findOne`, `each`, `exists`, `count`, `distinct`, `update`, `remove`). Documents passed to `save`/`saveAll` get only the top-level rewrite.
+The same rules apply to every filter (`find`, `findOne`, `each`, `exists`, `count`, `distinct`, `update`, `updateOne`, `remove`). Documents passed to `save`/`saveAll` get only the top-level rewrite.
 
 Strings that are not valid 24-character hex pass through unchanged, so numeric and UUID `_id` schemes keep working.
 
 `findById`/`removeById` accept only scalar ids: a string, a finite number, a bigint, a boolean, a `Date`, or a scalar BSON value (`ObjectId`, `UUID`/`Binary`, `Long`, `Decimal128`, `Int32`, `Double`, `Timestamp`). Anything else (`null`, `undefined`, a plain object, a `Map`, a class instance, a `RegExp`/`BSONRegExp`, an array, or any value with a `toBSON` method, which the serializer would send in its place) is rejected before the driver sees it and reported as `Invalid id rejected`. An operator object like `{ $ne: null }` or a regex arriving from request input (EJSON, superjson, devalue, and similar decoders produce them) would otherwise match, or delete, an arbitrary document. `save`/`saveAll` apply the same check to a document's `_id`. Use `findOne({ _id: { ... } })` for intentional operator queries.
 
-`{ id: null }` is rewritten to `{ _id: null }`, which matches no stored document, so a filter whose only key is a null id alias never touches the whole collection. In a `save` document it is dropped and the driver mints a fresh `_id`.
+`{ id: null }` is rewritten to `{ _id: null }`, which matches no stored document, so a filter whose only key is a null id alias never touches the whole collection. In a `save` document it is dropped and the driver mints a fresh `_id`, and a top-level one on an [upsert](#upsert) is rejected rather than stored as the `_id`.
 
 Apart from this id normalization, query objects are passed to the driver **unsanitized**; see [Trust boundary](#trust-boundary) for the full picture, including the update-document and read `options`.
 
@@ -277,7 +279,7 @@ For `findById`, pass it as the third argument: `findById(id, fields, { onError }
 
 ## Empty filter protection
 
-`update(query, $update)`, and `remove(query)` reject empty filters. `null`, `undefined`, `{}`, and a filter whose values are all `undefined` (e.g. `{field: undefined}`) short-circuit to `false` without touching the driver. The rejection is reported through `onError` (or `console.error`) with `{ method, collection, query }` so it stays visible.
+`update(query, $update)`, `updateOne(query, $update)`, and `remove(query)` reject empty filters, with or without `upsert`. `null`, `undefined`, `{}`, and a filter whose values are all `undefined` (e.g. `{field: undefined}`) short-circuit to `false` without touching the driver. The rejection is reported through `onError` (or `console.error`) with `{ method, collection, query }` so it stays visible.
 
 ```js
 await users.update(maybeMissing, { $set: { url: 'x' } }); // false, nothing rewritten
@@ -286,9 +288,28 @@ await users.remove(undefined); // false, nothing deleted
 
 To wipe a collection, use a non-empty filter such as `{ _id: { $exists: true } }`, or call the native driver directly via `client.open(name)`.
 
-## Positional updates with `arrayFilters`
+## Updates
 
-`update(query, $update, options)` forwards `options.arrayFilters` to the driver, enabling positional updates over array elements:
+`update()` rewrites every matching document, and `updateOne()` rewrites the first one. Both resolve to `true` when a document was modified or upserted. A match whose values already equal the update modifies nothing and resolves to `false`, which on its own looks the same as no match; pass an `onError` to tell either of them apart from a failure.
+
+### Upsert
+
+`options.upsert: true` inserts a document when nothing matches. The new document is built from the filter's equality fields plus the update. Ids in the filter get the usual normalization, so a hex `_id` is stored as an `ObjectId`:
+
+```js
+await products.updateOne(
+  { sku: 'A-1' },
+  { $set: { price: 10 }, $setOnInsert: { createdAt: new Date() } },
+  { upsert: true }
+);
+// true: inserted. The same call again resolves to false: nothing changed
+```
+
+Only the literal `true` turns it on. A filter whose top-level `_id` is `null` or `undefined` (sent as null), `{ id: null }` included, is rejected and reported as `Null _id upsert rejected`, because the insert would store that null and every later null-id filter would match it. Like the other guards, it reads only the top level: a null `_id` under `$eq` or `$and` is yours to keep out of an upsert filter. The filter becomes part of the inserted document, so see [Trust boundary](#trust-boundary) before you upsert with a request-derived filter.
+
+### Positional updates with `arrayFilters`
+
+`options.arrayFilters` is forwarded to the driver, enabling positional updates over array elements:
 
 ```js
 await pages.update(
@@ -298,7 +319,7 @@ await pages.update(
 );
 ```
 
-Only `arrayFilters`, `signal`, and `timeout` are forwarded; other driver-level update options are ignored. Use `client.open(name)` directly if you need them.
+Only `arrayFilters`, `upsert`, `signal`, and `timeout` are forwarded; other driver-level update options are ignored. Use `client.open(name)` directly if you need them.
 
 ## AbortSignal and timeout
 

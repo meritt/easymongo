@@ -27,11 +27,12 @@ after(async () => {
 beforeEach(wipe);
 
 describe('a null id alias never matches every document', () => {
-  test('remove/update with {id: null} touch nothing', async () => {
+  test('remove/update/updateOne with {id: null} touch nothing', async () => {
     await docs.saveAll([{ n: 1 }, { n: 2 }, { n: 3 }]);
     const filter = JSON.parse('{"id": null}');
 
     assert.equal(await docs.update(filter, { $set: { hit: 1 } }), false);
+    assert.equal(await docs.updateOne(filter, { $set: { hit: 1 } }), false);
     assert.equal(await docs.remove(filter), false);
 
     assert.equal(await rawCount(), 3);
