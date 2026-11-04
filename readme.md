@@ -9,8 +9,8 @@ A thin, opinionated wrapper around the official MongoDB Node.js driver. Every as
 
 ## Requirements
 
-- Node.js ≥ 24.16
-- MongoDB server 7.0, 8.0, 8.2, or 8.3
+- Node.js ≥ 24.16 (tested on 24 and 26 LTS)
+- MongoDB server 7.0, 8.0, 8.3, or 9.0
 
 ## Installation
 
