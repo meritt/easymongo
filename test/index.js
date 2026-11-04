@@ -218,6 +218,40 @@ describe('find', () => {
   });
 });
 
+describe('id normalization inside logical operators', () => {
+  test('find/count/exists match a hex _id inside $or', async () => {
+    const saved = await users.save({ name: 'Alexey' });
+    await users.save({ name: 'Other' });
+    const query = { $or: [{ _id: saved._id.toString() }, { name: 'Nobody' }] };
+
+    const docs = await users.find(query);
+    assert.equal(docs.length, 1);
+    assert.equal(docs[0].name, 'Alexey');
+    assert.equal(await users.count(query), 1);
+    assert.equal(await users.exists(query), true);
+  });
+
+  test('remove deletes by a hex _id inside $and', async () => {
+    const saved = await users.save({ name: 'Alexey' });
+    const ok = await users.remove({
+      $and: [{ _id: saved._id.toString() }, { name: 'Alexey' }]
+    });
+    assert.equal(ok, true);
+    assert.equal(await users.count({ name: 'Alexey' }), 0);
+  });
+
+  test('each streams a match for a hex _id inside $or', async () => {
+    const saved = await users.save({ name: 'Alexey' });
+    const seen = [];
+    for await (const doc of users.each({
+      $or: [{ id: saved._id.toString() }]
+    })) {
+      seen.push(doc.name);
+    }
+    assert.deepEqual(seen, ['Alexey']);
+  });
+});
+
 describe('findOne', () => {
   test('null when nothing matches', async () => {
     const result = await users.findOne({ name: 'Nobody' });

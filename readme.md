@@ -211,11 +211,16 @@ await users.find({
   _id: { $nin: ['4e4e1638c85e808431000003', '4e4e1638c85e808431000004'] }
 }); // same for $nin
 await users.find({ _id: { $gt: '4e4e1638c85e808431000003' } }); // scalar comparisons too: $eq/$ne/$gt/$gte/$lt/$lte
+await users.find({ $or: [{ id: '4e4e1638c85e808431000003' }, { email }] }); // inside $and/$or/$nor, at any depth
 ```
+
+The same rules apply to every filter (`find`, `findOne`, `each`, `exists`, `count`, `distinct`, `update`, `remove`). Documents passed to `save`/`saveAll` get only the top-level rewrite.
 
 Strings that are not valid 24-character hex pass through unchanged, so numeric and UUID `_id` schemes keep working.
 
 `findById`/`removeById` reject `null`, `undefined`, and plain-object ids before the driver sees them (reported as `Invalid id rejected`): an operator object like `{ $ne: null }` smuggled from request input would otherwise match, or delete, an arbitrary document. Use `findOne({ _id: { ... } })` for intentional operator queries.
+
+`{ id: null }` is rewritten to `{ _id: null }`, which matches no stored document, so a filter whose only key is a null id alias never touches the whole collection. In a `save` document it is dropped and the driver mints a fresh `_id`.
 
 Apart from this id normalization, query objects are passed to the driver **unsanitized**; see [Trust boundary](#trust-boundary) for the full picture, including the update-document and read `options`.
 
