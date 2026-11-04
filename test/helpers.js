@@ -35,6 +35,7 @@ export function everyMethod(col) {
     { method: 'exists', call: (o) => col.exists({}, o), empty: false },
     { method: 'count', call: (o) => col.count({ name: 'x' }, o), empty: 0 },
     { method: 'distinct', call: (o) => col.distinct('x', {}, o), empty: [] },
+    { method: 'aggregate', call: (o) => col.aggregate([], o), empty: [] },
     { method: 'save', call: (o) => col.save({ a: 2 }, o), empty: null },
     { method: 'saveAll', call: (o) => col.saveAll([{ a: 2 }], o), empty: [] },
     {

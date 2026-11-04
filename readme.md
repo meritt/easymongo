@@ -51,8 +51,9 @@ This is a thin wrapper, not a sanitizing layer. Read this before pointing it at 
 - **Filters reach the driver unsanitized on every method.** `find`, `findOne`, `exists`, `count`, `distinct`, `update`, `updateOne`, `remove`, and `each()` (easy to miss, since it's the streaming path) all pass the query through as-is, `$where`, `$function`, and `$expr` included, so an untrusted filter can run JavaScript on the server.
 - **The update-document is unsanitized too.** `update()`/`updateOne()`'s 2nd argument applies exactly as given; an untrusted `$set`/`$inc` payload is a mass-assignment vector.
 - **With `upsert: true`, the filter becomes data.** When nothing matches, the equality fields of the filter are written into the inserted document. An untrusted filter on an upsert is a mass-assignment vector in its own right, even with a hand-built update-document.
+- **Aggregation pipelines are unsanitized, except for writes.** `aggregate()` rejects `$out` and `$merge`, so it cannot write, and `$changeStream`, which never ends, but every other stage goes through as given: `$lookup`/`$unionWith` can read any collection in the database, and `$function`/`$accumulator` run JavaScript on the server.
 - **`options.fields`/`projection`/`sort` aren't sanitized either.** The fail-closed array whitelist only blocks a degenerate input (`[]`, `['__proto__']`); `fields: ['password']` is a valid whitelist entry and goes straight through. A projection object, including `findById`'s positional `fields`, accepts aggregation expressions, so `{ x: { $function: ... } }` runs JavaScript on the server.
-- **The guarded surfaces** are the `_id` slot (anything but a scalar id is rejected by `findById`/`removeById` and in `save`/`saveAll` documents), the empty-filter guard on `update`/`updateOne`/`remove`, the null-`_id` check on upserts. They fail closed and are syntactic: each reads the top level of the copy that is sent (getters run once) and does not predict what the serializer or the server makes of deeper values. The empty-filter guard stops a missing or blank filter, one with no key holding data (`undefined`, a function, or a symbol does not count, nor does a filter with its own `toBSON`), not one that matches everything by construction (`{ $and: [{}] }`, `{ $comment: 'x' }`).
+- **The guarded surfaces** are the `_id` slot (anything but a scalar id is rejected by `findById`/`removeById` and in `save`/`saveAll` documents), the empty-filter guard on `update`/`updateOne`/`remove`, the null-`_id` check on upserts, and the stage guard on `aggregate`. They fail closed and are syntactic: each reads the top level of the copy that is sent (getters run once) and does not predict what the serializer or the server makes of deeper values. The empty-filter guard stops a missing or blank filter, one with no key holding data (`undefined`, a function, or a symbol does not count, nor does a filter with its own `toBSON`), not one that matches everything by construction (`{ $and: [{}] }`, `{ $comment: 'x' }`).
 - **Collection names are trusted.** Every distinct name keeps a driver handle cached for the life of the client, and the name appears in reported errors, so derive it from your own code, not from a request.
 
 Never pass `req.body`/`req.query` directly as a query, an update-document, a pipeline, or an options object. Build and validate it yourself.
@@ -102,6 +103,7 @@ new MongoClient(server, options?)
 | `exists(query?, options?)`            | `boolean`                              | `false`            |
 | `count(query?, options?)`             | `number`                               | `0`                |
 | `distinct(field, query?, options?)`   | `any[]`                                | `[]`               |
+| `aggregate(pipeline, options?)`       | `doc[]`                                | `[]`               |
 | `save(doc, options?)`                 | `doc \| null`                          | `null`             |
 | `saveAll(docs, options?)`             | `doc[]`                                | `[]`               |
 | `update(query, $update, options?)`    | `boolean`                              | `false`            |
@@ -217,7 +219,7 @@ await users.find({ _id: { $gt: '4e4e1638c85e808431000003' } }); // scalar compar
 await users.find({ $or: [{ id: '4e4e1638c85e808431000003' }, { email }] }); // inside $and/$or/$nor, at any depth
 ```
 
-The same rules apply to every filter (`find`, `findOne`, `each`, `exists`, `count`, `distinct`, `update`, `updateOne`, `remove`). Documents passed to `save`/`saveAll` get only the top-level rewrite.
+The same rules apply to every filter (`find`, `findOne`, `each`, `exists`, `count`, `distinct`, `update`, `updateOne`, `remove`) and to top-level `$match` stages in `aggregate`. Documents passed to `save`/`saveAll` get only the top-level rewrite.
 
 Strings that are not valid 24-character hex pass through unchanged, so numeric and UUID `_id` schemes keep working.
 
@@ -321,6 +323,22 @@ await pages.update(
 
 Only `arrayFilters`, `upsert`, `signal`, and `timeout` are forwarded; other driver-level update options are ignored. Use `client.open(name)` directly if you need them.
 
+## Aggregation
+
+`aggregate(pipeline, options?)` runs a pipeline and collects the result:
+
+```js
+await orders.aggregate([
+  { $group: { _id: '$status', count: { $sum: 1 } } },
+  { $sort: { count: -1 } }
+]);
+// [{ _id: 'paid', count: 2 }, { _id: 'new', count: 1 }]
+```
+
+It is read-only. A non-array pipeline, a stage that is not a plain object, a stage with its own `toBSON`, a `$out` or `$merge` stage, and a `$changeStream` stage (a change stream never ends, so collecting it would never resolve) are rejected and reported, resolving to `[]` before anything reaches the server. Each stage is copied once (its getters run once) and that copy is both checked and sent, so a stage cannot show the check one shape and the server another. Top-level `$match` stages get the same [id normalization](#ids) as filters. `batchSize`, `signal`, and `timeout` are forwarded; for other driver options (`allowDiskUse`, `collation`, `hint`) or for a pipeline that writes, use `client.open(name)` directly.
+
+The whole result is collected in memory, like `find()`. There is no streaming variant: for a large result, add a `$limit` stage or use the native cursor via `client.open(name)`.
+
 ## AbortSignal and timeout
 
 Every async method accepts `options.signal` and forwards it to the driver (for `ensureIndexes`, inside each entry's `options`; for `findById`, in the third argument). Any other truthy value is rejected and reported as `Invalid signal rejected` before any I/O; a falsy one counts as no signal, so `{ signal: cond && ctrl.signal }` works. Pre-aborted signals collapse to the empty default and emit through `onError`:
@@ -344,7 +362,7 @@ const docs = await users.find({}, { timeout: 500, signal: ctrl.signal });
 
 Aborting mid-iteration of `each()` ends the loop quietly and reports through `onError`.
 
-Input guards (empty filter, invalid id, document, or index spec) run before the signal is looked at, so a call that is both rejected and aborted reports only the rejection. `saveAll` drops and reports each invalid entry but still writes the rest, so its abort is reported as well.
+Input guards (empty filter, invalid id, document, pipeline, or index spec) run before the signal is looked at, so a call that is both rejected and aborted reports only the rejection. `saveAll` drops and reports each invalid entry but still writes the rest, so its abort is reported as well.
 
 ## Author
 

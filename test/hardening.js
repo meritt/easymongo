@@ -10,10 +10,11 @@ import { prepare, prepareQuery } from '../lib/prepare.js';
 import { SEED, capture, everyMethod, wipe as wipeNames } from './helpers.js';
 
 const COLLECTION = `easymongo_hardening_${randomUUID()}`;
+const TARGET = `${COLLECTION}_out`;
 const mongo = new MongoClient({ dbname: 'test' }, { silent: true });
 const docs = mongo.collection(COLLECTION);
 
-const wipe = () => wipeNames(mongo, COLLECTION);
+const wipe = () => wipeNames(mongo, COLLECTION, TARGET);
 
 async function rawCount(name = COLLECTION) {
   return (await mongo.open(name)).countDocuments();
@@ -206,6 +207,53 @@ describe('saveAll never reports a write that did not happen', () => {
       result.map((d) => d._id),
       ['a', 'b']
     );
+  });
+});
+
+describe('aggregate validates and sends one snapshot of the pipeline', () => {
+  test('a toBSON stage cannot smuggle $out', async () => {
+    await docs.saveAll([{ n: 1 }]);
+    const { captured, onError } = capture();
+
+    const result = await docs.aggregate(
+      [{ $match: {}, toBSON: () => ({ $out: TARGET }) }],
+      { onError }
+    );
+
+    assert.deepEqual(result, []);
+    assert.equal(captured.length, 1);
+    assert.equal(await rawCount(TARGET), 0);
+  });
+
+  test('a getter that turns into $out after the check cannot write', async () => {
+    await docs.saveAll([{ n: 1 }]);
+    const stage = {
+      get $match() {
+        delete stage.$match;
+        stage.$out = TARGET;
+        return {};
+      }
+    };
+
+    await docs.aggregate([stage]);
+    assert.equal(await rawCount(TARGET), 0);
+  });
+
+  test('a pipeline proxy that changes between reads cannot write', async () => {
+    await docs.saveAll([{ n: 1 }]);
+    let reads = 0;
+    const pipeline = new Proxy([{ $match: {} }], {
+      get(target, key, receiver) {
+        if (key === '0') {
+          reads = reads + 1;
+          return reads > 1 ? { $out: TARGET } : { $match: {} };
+        }
+        return Reflect.get(target, key, receiver);
+      }
+    });
+
+    await docs.aggregate(pipeline);
+    assert.equal(await rawCount(TARGET), 0);
   });
 });
 
