@@ -319,7 +319,7 @@ Aborting mid-iteration of `each()` ends the loop quietly and reports through `on
 
 ## Author
 
-- [Alexey Simonenko](https://github.com/meritt)
+- [Alexey Simonenko](https://simonenko.xyz)
 
 ## License
 
