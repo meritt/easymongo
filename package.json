@@ -35,7 +35,7 @@
     "mongodb": "^7.8.0"
   },
   "devDependencies": {
-    "oxfmt": "^0.76.0",
+    "oxfmt": "^0.79.0",
     "oxlint": "^1.91.0"
   },
   "devEngines": {
